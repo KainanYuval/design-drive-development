@@ -31,3 +31,4 @@ temp/
 # Local-only
 viewer/dist/
 viewer/node_modules/
+viewer/rust/target/

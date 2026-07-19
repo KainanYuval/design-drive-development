@@ -1,4 +1,4 @@
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, Excalidraw, getSceneVersion } from "@excalidraw/excalidraw";
 import type {
   AppState,
   BinaryFiles,
@@ -14,58 +14,6 @@ declare global {
     __DDD_APPLET__?: boolean;
     __DDD_INITIAL_DIAGRAM__?: { path: string; content: string };
   }
-}
-
-function DddToolbar(): JSX.Element | null {
-  if (!window.__DDD_APPLET__) {
-    return null;
-  }
-
-  const buttonStyle = {
-    background: "#343a40",
-    border: "1px solid #495057",
-    borderRadius: 4,
-    color: "#f8f9fa",
-    cursor: "pointer",
-    fontFamily: "system-ui, sans-serif",
-    fontSize: 12,
-    padding: "4px 10px",
-  } as const;
-
-  return (
-    <div
-      style={{
-        background: "#1e1e1e",
-        display: "flex",
-        flexShrink: 0,
-        gap: 8,
-        padding: "6px 10px",
-        WebkitAppRegion: "no-drag",
-      }}
-    >
-      <button
-        style={buttonStyle}
-        type="button"
-        onClick={() => vscode.postMessage({ type: "copySelectionReference" })}
-      >
-        Copy ref
-      </button>
-      <button
-        style={buttonStyle}
-        type="button"
-        onClick={() => vscode.postMessage({ type: "appletSaveDesign" })}
-      >
-        Save design
-      </button>
-      <button
-        style={buttonStyle}
-        type="button"
-        onClick={() => vscode.postMessage({ type: "appletInsertDesign" })}
-      >
-        Insert design
-      </button>
-    </div>
-  );
 }
 
 type ExcalidrawPayload = {
@@ -180,6 +128,10 @@ function sceneFingerprint(
   return JSON.stringify({ elements, files });
 }
 
+function liveElementCount(elements: readonly ExcalidrawElement[]): number {
+  return elements.filter((element) => !element.isDeleted).length;
+}
+
 export function App(): JSX.Element {
   const initial = window.__DDD_INITIAL_DIAGRAM__;
   const [payload, setPayload] = useState<ExcalidrawPayload | null>(() => {
@@ -188,27 +140,82 @@ export function App(): JSX.Element {
     }
     return parsePayload(initial.content);
   });
-  const [revision, setRevision] = useState(0);
   const suppressChangeUntil = useRef(0);
   const latestAppState = useRef<Partial<AppState>>({});
   const latestElements = useRef<ExcalidrawElement[]>([]);
   const latestFiles = useRef<BinaryFiles>({});
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const lastPersistedScene = useRef("");
+  const diagramReadySent = useRef(false);
+  const isPointerDown = useRef(false);
+  const pendingExternalLoad = useRef<string | null>(null);
+  const sceneBootstrapped = useRef(false);
 
-  const applyExternalPayload = useCallback((raw: string) => {
-    suppressChangeUntil.current = Date.now() + 1500;
+  useEffect(() => {
+    if (!payload || diagramReadySent.current || !window.__DDD_APPLET__) {
+      return;
+    }
+    diagramReadySent.current = true;
+    vscode.postMessage({ type: "timing", phase: "diagram-render" });
+  }, [payload]);
+
+  const applyExternalPayload = useCallback((raw: string, external = true) => {
     const parsed = parsePayload(raw);
+    const nextFingerprint = sceneFingerprint(parsed.elements, parsed.files);
+    if (nextFingerprint === lastPersistedScene.current) {
+      return;
+    }
+
+    const currentElements = apiRef.current?.getSceneElements() ?? latestElements.current;
+    if (external) {
+      if (isPointerDown.current) {
+        pendingExternalLoad.current = raw;
+        return;
+      }
+
+      const incomingLive = liveElementCount(parsed.elements);
+      const currentLive = liveElementCount(currentElements);
+      if (
+        incomingLive < currentLive ||
+        getSceneVersion(parsed.elements) < getSceneVersion(currentElements)
+      ) {
+        return;
+      }
+    }
+
+    if (external) {
+      suppressChangeUntil.current = Date.now() + 400;
+    }
+
     latestElements.current = parsed.elements;
     latestFiles.current = parsed.files;
-    lastPersistedScene.current = sceneFingerprint(parsed.elements, parsed.files);
+    lastPersistedScene.current = nextFingerprint;
+
+    const api = apiRef.current;
+    if (api) {
+      api.updateScene({
+        elements: parsed.elements,
+        files: parsed.files,
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+      return;
+    }
+
     setPayload({
       elements: parsed.elements,
       appState: preserveViewState(parsed.appState, latestAppState.current),
       files: parsed.files,
     });
-    setRevision((value) => value + 1);
   }, []);
+
+  const flushPendingExternalLoad = useCallback(() => {
+    const raw = pendingExternalLoad.current;
+    if (!raw) {
+      return;
+    }
+    pendingExternalLoad.current = null;
+    applyExternalPayload(raw, true);
+  }, [applyExternalPayload]);
 
   const insertDesign = useCallback(
     (
@@ -268,7 +275,7 @@ export function App(): JSX.Element {
     ) => {
       const message = event.data;
       if (message?.type === "load" && typeof message.content === "string") {
-        applyExternalPayload(message.content);
+        applyExternalPayload(message.content, message.external !== false);
         return;
       }
 
@@ -333,14 +340,9 @@ export function App(): JSX.Element {
     window.addEventListener("keydown", onKeyDown, true);
     vscode.postMessage({ type: "ready" });
 
-    const pullTimer = window.setInterval(() => {
-      vscode.postMessage({ type: "pull" });
-    }, 400);
-
     return () => {
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown, true);
-      window.clearInterval(pullTimer);
     };
   }, [applyExternalPayload, insertDesign]);
 
@@ -364,29 +366,36 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-        width: "100%",
-      }}
-    >
-      <DddToolbar />
-      <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <Excalidraw
-          key={revision}
+    <div style={{ height: "100%", overflow: "hidden", width: "100%" }}>
+      <Excalidraw
+          viewModeEnabled={false}
           excalidrawAPI={(api) => {
             apiRef.current = api;
+            if (!sceneBootstrapped.current) {
+              sceneBootstrapped.current = true;
+              latestElements.current = payload.elements;
+              latestFiles.current = payload.files;
+              lastPersistedScene.current = sceneFingerprint(payload.elements, payload.files);
+              api.updateScene({
+                elements: payload.elements,
+                files: payload.files,
+                captureUpdate: CaptureUpdateAction.NEVER,
+              });
+            }
           }}
           initialData={{
-            elements: payload.elements,
             appState: {
-              ...payload.appState,
               viewModeEnabled: false,
             },
-            files: payload.files,
+          }}
+          onPointerDown={() => {
+            isPointerDown.current = true;
+          }}
+          onPointerUp={() => {
+            isPointerDown.current = false;
+            window.requestAnimationFrame(() => {
+              flushPendingExternalLoad();
+            });
           }}
           onChange={(elements, appState, files) => {
             latestAppState.current = appState;
@@ -414,7 +423,6 @@ export function App(): JSX.Element {
             },
           }}
         />
-      </div>
     </div>
   );
 }

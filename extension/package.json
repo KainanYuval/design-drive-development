@@ -131,8 +131,11 @@
     "compile": "tsc -p .",
     "build:webview": "node esbuild.webview.mjs",
     "build:applet": "node esbuild.applet.mjs && cp ../viewer/index.html ../viewer/dist/index.html",
+    "build:rust-applet": "cargo build --release --manifest-path ../viewer/rust/Cargo.toml",
     "build": "npm run compile && npm run build:webview && npm run build:applet",
-    "view": "node ../viewer/view.mjs",
+    "view": "node ../viewer/view-rust.mjs",
+    "view:electron": "node ../viewer/view.mjs",
+    "view:rust": "node ../viewer/view-rust.mjs",
     "watch": "tsc -watch -p .",
     "package": "vsce package --no-dependencies",
     "install:local": "npm run package && cursor --install-extension design-drive-development-0.3.0.vsix --force"

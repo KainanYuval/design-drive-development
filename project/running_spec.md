@@ -1,5 +1,17 @@
 # Running spec
 
+### 2026-07-20 — Defer disk reload during canvas interaction
+- **Decision:** Webview defers external `updateScene` loads while pointer is down and rejects stale loads with fewer elements; hosts skip disk push while `hasUnsavedWebviewEdits`; remove 400ms pull polling (file watchers only).
+- **Rationale:** `replaceAllElements` during shape drag wiped in-progress `newElement`; moves worked because existing elements already on disk.
+
+### 2026-07-20 — Rust/wry applet is default standalone viewer
+- **Decision:** Default terminal popup = Rust applet (`viewer/rust/`, `npm run view --open`). Electron kept as `npm run view:electron --open`.
+- **Rationale:** ~10 MB runtime vs ~241 MB Electron; cold start still under 300 ms; user chose Rust after size/latency comparison.
+
+### 2026-07-20 — Rust/wry applet as Electron alternative
+- **Decision:** Ship optional Rust applet at `viewer/rust/` (wry + tao), same `viewer/dist/` webview; launch via `npm run view:rust -- <file> --open` after `cargo build --release`.
+- **Rationale:** Smaller native binary vs Electron; cold-start benchmark on M4 Pro shows ~291 ms mean vs Electron ~265 ms — JS bundle dominates, so Rust is experimental shell not default.
+
 ### 2026-07-20 — Popup is standalone Electron applet
 - **Decision:** Terminal popup = separate Electron app (`viewer/applet/`), not Cursor spawn and not a browser tab. `view.mjs --open` launches it; watches diagram file on disk.
 - **Rationale:** User needs a distinct desktop window for terminal harnesses, not another Cursor editor tab.

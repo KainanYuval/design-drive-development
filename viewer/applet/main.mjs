@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { accessSync, constants } from "node:fs";
 import { dirname, join } from "node:path";
 import { stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -7,6 +6,29 @@ import { createHostSession, findWorkspaceRoot } from "./hostSession.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const distDir = join(here, "..", "dist");
+const timingEnabled = process.env.DDD_APPLET_TIMING === "1";
+const benchmarkMode = process.env.DDD_APPLET_BENCHMARK === "1";
+const t0 = Date.now();
+const marks = [];
+
+function mark(label) {
+  if (!timingEnabled && !benchmarkMode) {
+    return;
+  }
+  marks.push({ label, ms: Date.now() - t0 });
+}
+
+function printTiming(summaryLabel) {
+  const lines = [`[ddd-applet timing] ${summaryLabel}`];
+  for (const entry of marks) {
+    lines.push(`  ${entry.label.padEnd(22)} ${entry.ms}ms`);
+  }
+  const ready = marks.find((entry) => entry.label === "diagram-render");
+  if (ready) {
+    lines.push(`  ${"→ interactive".padEnd(22)} ${ready.ms}ms`);
+  }
+  console.log(lines.join("\n"));
+}
 
 let session = null;
 let reloadTimer = null;
@@ -47,11 +69,20 @@ function createWindow() {
   });
 
   mainWindow.setMenuBarVisibility(false);
+  mark("window-created");
+  mainWindow.webContents.on("dom-ready", () => {
+    mark("dom-ready");
+  });
+  mainWindow.webContents.on("did-finish-load", () => {
+    mark("did-finish-load");
+  });
   void mainWindow.loadFile(join(distDir, "index.html"));
+  mark("load-file-called");
   return mainWindow;
 }
 
 app.whenReady().then(async () => {
+  mark("app-ready");
   const diagramPath = process.argv[2];
   if (!diagramPath) {
     console.error("Usage: electron applet/main.mjs <diagram.excalidraw>");
@@ -71,7 +102,22 @@ app.whenReady().then(async () => {
   session = createHostSession({ diagramPath, workspaceRoot, pushToRenderer });
   await session.init();
 
+  session = createHostSession({ diagramPath, workspaceRoot, pushToRenderer });
+  await session.init();
+  mark("session-init");
+
   ipcMain.on("ddd-host", (_event, message) => {
+    if (message?.type === "timing" && message.phase === "diagram-render") {
+      mark("diagram-render");
+      printTiming(diagramPath);
+      if (benchmarkMode) {
+        app.quit();
+      }
+      return;
+    }
+    if (message?.type === "ready") {
+      mark("webview-ready");
+    }
     void session?.handleMessage(message);
   });
 

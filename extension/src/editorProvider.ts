@@ -236,6 +236,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   private saveTimer: NodeJS.Timeout | undefined;
   private webviewReady = false;
   private acceptWebviewEdits = false;
+  private hasUnsavedWebviewEdits = false;
   private lastPushedHash: string;
   private lastWebviewSaveHash: string;
   private selectionRequestId = 0;
@@ -574,8 +575,17 @@ class ExcalidrawEditor implements vscode.Disposable {
     }
 
     const diskHash = hashContent(bytes);
-    if (!force && diskHash === this.lastPushedHash) {
-      return;
+    if (!force) {
+      if (this.hasUnsavedWebviewEdits) {
+        return;
+      }
+      if (diskHash === this.lastPushedHash) {
+        return;
+      }
+      if (diskHash === this.document.getHash()) {
+        this.lastPushedHash = diskHash;
+        return;
+      }
     }
 
     this.document.updateFromBytes(bytes, false);
@@ -585,6 +595,7 @@ class ExcalidrawEditor implements vscode.Disposable {
     void this.panel.webview.postMessage({
       type: "load",
       content: this.document.getText(),
+      external: reason !== "ready",
     });
 
     outputChannel.appendLine(`[${reason}] pushed update (${diskHash.slice(0, 8)})`);
@@ -600,6 +611,7 @@ class ExcalidrawEditor implements vscode.Disposable {
       return;
     }
 
+    this.hasUnsavedWebviewEdits = true;
     this.scheduleAutoSave();
   }
 
@@ -646,6 +658,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   }
 
   markSaved(): void {
+    this.hasUnsavedWebviewEdits = false;
     this.lastWebviewSaveHash = this.document.getHash();
     this.lastPushedHash = this.lastWebviewSaveHash;
   }
