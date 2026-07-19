@@ -1,0 +1,154 @@
+{
+  "name": "design-drive-development",
+  "displayName": "Design Drive Development (DDD)",
+  "description": "Design Drive Development — open .excalidraw diagrams in-repo with live reload, autosave, and agent collaboration.",
+  "version": "0.3.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "design-drive-development.editor",
+        "displayName": "Design Drive Development (DDD)",
+        "selector": [
+          {
+            "filenamePattern": "*.excalidraw"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "languages": [
+      {
+        "id": "excalidraw",
+        "extensions": [
+          ".excalidraw"
+        ],
+        "aliases": [
+          "Excalidraw"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "design-drive-development.openWith",
+        "title": "Reopen with Design Drive Development",
+        "category": "DDD"
+      },
+      {
+        "command": "design-drive-development.copySelectionReference",
+        "title": "Copy Selection Reference for Chat",
+        "category": "DDD"
+      },
+      {
+        "command": "design-drive-development.saveSelectionAsDesign",
+        "title": "Save Selection as Design",
+        "category": "DDD"
+      },
+      {
+        "command": "design-drive-development.insertDesign",
+        "title": "Insert Design from Repository",
+        "category": "DDD"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "design-drive-development.copySelectionReference",
+        "key": "shift+alt+c",
+        "mac": "shift+alt+c",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "design-drive-development.saveSelectionAsDesign",
+        "key": "shift+alt+s",
+        "mac": "shift+alt+s",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "design-drive-development.insertDesign",
+        "key": "shift+alt+i",
+        "mac": "shift+alt+i",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "design-drive-development.openWith",
+          "when": "resourceExtname == .excalidraw",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "design-drive-development.copySelectionReference",
+          "when": "activeCustomEditorId == design-drive-development.editor",
+          "group": "navigation@1"
+        },
+        {
+          "command": "design-drive-development.saveSelectionAsDesign",
+          "when": "activeCustomEditorId == design-drive-development.editor",
+          "group": "navigation@2"
+        },
+        {
+          "command": "design-drive-development.insertDesign",
+          "when": "activeCustomEditorId == design-drive-development.editor",
+          "group": "navigation@3"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "design-drive-development.openWith",
+          "when": "resourceExtname == .excalidraw",
+          "group": "navigation"
+        },
+        {
+          "command": "design-drive-development.copySelectionReference",
+          "when": "activeCustomEditorId == design-drive-development.editor",
+          "group": "navigation"
+        },
+        {
+          "command": "design-drive-development.saveSelectionAsDesign",
+          "when": "activeCustomEditorId == design-drive-development.editor",
+          "group": "navigation"
+        },
+        {
+          "command": "design-drive-development.insertDesign",
+          "when": "activeCustomEditorId == design-drive-development.editor",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "build:webview": "node esbuild.webview.mjs",
+    "build:applet": "node esbuild.applet.mjs && cp ../viewer/index.html ../viewer/dist/index.html",
+    "build": "npm run compile && npm run build:webview && npm run build:applet",
+    "view": "node ../viewer/view.mjs",
+    "watch": "tsc -watch -p .",
+    "package": "vsce package --no-dependencies",
+    "install:local": "npm run package && cursor --install-extension design-drive-development-0.3.0.vsix --force"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.3",
+    "@vscode/vsce": "^3.2.1"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

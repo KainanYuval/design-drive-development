@@ -1,0 +1,4 @@
+# Replace OWNER with your GitHub username or org before enabling
+# "Require review from Code Owners" on the default branch.
+
+* @OWNER

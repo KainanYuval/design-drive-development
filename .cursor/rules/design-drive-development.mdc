@@ -1,0 +1,16 @@
+---
+description: Design Drive Development (DDD) — diagram file is source of truth, skill owns agent workflow
+globs: "**/*.{excalidraw,metadata.md,mmd,mermaid}"
+alwaysApply: false
+---
+
+# Design Drive Development (DDD)
+
+- Diagram file on disk (`.excalidraw` today; Mermaid planned) is the only shared state.
+- Use the `design-drive-development` skill when modifying diagrams or metadata.
+- Write semantic facts into elements (`id`, bound labels, `customData`) — not only into metadata.
+- Before adding a **new** diagram object (service, class, DB, cache, queue, …), offer 2–4 numbered options and wait for the user's choice — do not patch until they pick.
+- If the user request conflicts with saved metadata, diagram state, or `.designs/` artifacts, ask before editing — do not silently override.
+- After design proposals, end with the required four-option accept/reject menu from the skill.
+- Do not duplicate diagram state in chat; write the file and let the extension reload.
+- **Terminal harness:** before first diagram edit, offer opt-in **Electron applet** per skill — never auto-open (see `terminal-harness.md`).

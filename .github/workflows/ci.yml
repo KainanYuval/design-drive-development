@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extension-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install applet Electron
+        working-directory: viewer
+        run: npm ci
+
+      - name: Build applet bundle
+        run: npm run build:applet
+
+      - name: Package VSIX
+        run: npx @vscode/vsce package --no-dependencies
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-drive-development-vsix
+          path: extension/*.vsix
+          if-no-files-found: error
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Block common secret patterns
+        run: |
+          set -euo pipefail
+          PATTERNS='AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{20,}|BEGIN (RSA |OPENSSH )?PRIVATE KEY'
+          if git grep -E "$PATTERNS" -- ':!*.md' ':!.github/workflows/*' 2>/dev/null; then
+            echo "::error::Possible secret detected in tracked files"
+            exit 1
+          fi
+          echo "No obvious secret patterns in source"

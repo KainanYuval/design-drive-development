@@ -1,0 +1,19 @@
+tag: feature
+name: harness viewer hooks
+oneline: Port terminal-harness.md opt-in popup menu to Pi / Claude Code / Hermes skill packs; shared metadata keys for popup preference.
+kpi: Each harness doc includes same 4-option popup menu; no harness auto-opens viewer without user opt-in.
+
+tag: tech-debt
+name: install script version pin
+oneline: install:local hardcodes VSIX filename version; derive from package.json to avoid drift on bump.
+kpi: npm run install:local works after version bump with no manual script edit.
+
+tag: feature
+name: mermaid adapter
+oneline: Skill + reload path for `.mmd` per multi-format running_spec; shared metadata, format-specific edit rules.
+kpi: Agent can patch a `.mmd` file and user sees update without manual refresh.
+
+tag: chore
+name: codeowners placeholder
+oneline: Replace @OWNER in .github/CODEOWNERS and issue template URLs when GitHub remote is created.
+kpi: CODEOWNERS matches real maintainer handle before branch protection requires review.

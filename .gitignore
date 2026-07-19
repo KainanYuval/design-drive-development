@@ -1,0 +1,33 @@
+# Dependencies & builds
+node_modules/
+extension/out/
+extension/media/
+*.vsix
+
+# Secrets & env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials.json
+secrets.json
+
+# OS & editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+*.code-workspace
+
+# Logs & temp
+*.log
+npm-debug.log*
+temp
+temp/
+
+# Local-only
+viewer/dist/
+viewer/node_modules/

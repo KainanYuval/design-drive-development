@@ -1,0 +1,36 @@
+# Business TODO — DDD
+
+Product, GTM, and go-to-market. Not engineering backlog (see `tech_side_input`).
+
+## Domain & site
+
+- [ ] Buy product domain — prefer `designdriven.dev` (currently registered; try aftermarket) else `design-drive.dev` or `designdrive.dev`
+- [ ] Build public site — how DDD works, install path, agent loop, 60s demo GIF, vs pomdtr, links to extension + skill
+- [ ] Site live on owned domain with HTTPS before marketplace publish
+
+## GTM & distribution
+
+- [ ] Publish extension to OpenVSX + VS Code Marketplace (free)
+- [ ] List skill/rules on Cursor Marketplace (free plugin)
+- [ ] Record 60s demo video for README, site, and social
+- [ ] README + site positioning vs pomdtr (live reload, autosave, agent skill, `.designs/`)
+- [ ] Outreach pitch to Mermaid + Excalidraw communities (multi-format story)
+
+## Agent harnesses (beyond Cursor)
+
+- [ ] Support other agent harnesses — port DDD workflow (skill/rules, metadata, diagram-on-disk contract) to **Pi**, **Claude Code**, **Hermes**, and similar
+- [ ] Per-harness packaging — e.g. Claude `CLAUDE.md` / skills, Pi config, Hermes rules — shared core doc, harness-specific entrypoints
+- [ ] **Terminal harness viewer** — ~~popup MVP shipped~~ (`npm run view`); polish: harness hooks (Pi / Claude Code auto-open), optional edit/save later
+- [ ] Site + README list supported harnesses and install path for each
+
+## Brand
+
+- [ ] Lock tagline on site/README — spell out **Design Drive Development** before **DDD** (Domain-Driven Design collision)
+
+## Public GitHub repo
+
+- [ ] `git init`, push to GitHub, set repo public
+- [ ] Complete [`.github/REPOSITORY_SETUP.md`](../.github/REPOSITORY_SETUP.md) — branch protection, secret scanning push protection, Dependabot alerts
+- [ ] Replace `@OWNER` / `OWNER/REPO` in `.github/CODEOWNERS` and issue template config
+- [ ] Delete local `temp` file (unrelated content; gitignored but remove before first push)
+- [ ] First release: tag `v0.3.0` + attach CI-built VSIX

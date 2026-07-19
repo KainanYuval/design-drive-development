@@ -1,0 +1,30 @@
+name: Bug report
+description: Extension, webview, or skill workflow issue
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Steps to reproduce and expected vs actual behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      placeholder: e.g. 0.3.0
+  - type: dropdown
+    id: editor
+    attributes:
+      label: Editor
+      options:
+        - Cursor
+        - VS Code
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output log (optional)
+      description: View → Output → Design Drive Development (DDD)

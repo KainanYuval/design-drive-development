@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /extension
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "esbuild"
+          - "@vscode/vsce"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
