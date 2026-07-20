@@ -1,5 +1,9 @@
 # Running spec
 
+### 2026-07-20 — Fix empty-diagram race (Strict Mode + blur save)
+- **Decision:** Webview loads via `initialData.elements` (no empty mount + one-shot bootstrap ref); defer `readyToPersist` until API scene settles; extension only autosaves on blur/close when `hasUnsavedWebviewEdits`; persist rejects when memory element count < disk.
+- **Rationale:** React Strict Mode remount skipped bootstrap leaving empty canvas; blur persist wrote stale empty memory over agent/script disk writes.
+
 ### 2026-07-20 — Defer disk reload during canvas interaction
 - **Decision:** Webview defers external `updateScene` loads while pointer is down and rejects stale loads with fewer elements; hosts skip disk push while `hasUnsavedWebviewEdits`; remove 400ms pull polling (file watchers only).
 - **Rationale:** `replaceAllElements` during shape drag wiped in-progress `newElement`; moves worked because existing elements already on disk.

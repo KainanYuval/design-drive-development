@@ -5,7 +5,7 @@ import type {
   ExcalidrawElement,
   ExcalidrawImperativeAPI,
 } from "@excalidraw/excalidraw/types";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cloneDesignElements, designInsertOffset } from "./designElements";
 import { sendDocumentChange, vscode } from "./vscode";
 
@@ -149,7 +149,40 @@ export function App(): JSX.Element {
   const diagramReadySent = useRef(false);
   const isPointerDown = useRef(false);
   const pendingExternalLoad = useRef<string | null>(null);
-  const sceneBootstrapped = useRef(false);
+  const readyToPersist = useRef(false);
+  const lastPersistedLiveCount = useRef(0);
+  const persistReadyTimer = useRef<number | null>(null);
+
+  const excalidrawInitialData = useMemo(() => {
+    if (!payload) {
+      return undefined;
+    }
+    return {
+      elements: payload.elements,
+      files: payload.files,
+      appState: {
+        ...payload.appState,
+        viewModeEnabled: false,
+      },
+    };
+  }, [payload]);
+
+  const schedulePersistReady = useCallback((api: ExcalidrawImperativeAPI) => {
+    readyToPersist.current = false;
+    if (persistReadyTimer.current !== null) {
+      window.clearTimeout(persistReadyTimer.current);
+    }
+    persistReadyTimer.current = window.setTimeout(() => {
+      const elements = api.getSceneElements();
+      const files = api.getFiles();
+      lastPersistedScene.current = sceneFingerprint(elements, files);
+      lastPersistedLiveCount.current = liveElementCount(elements);
+      latestElements.current = [...elements];
+      latestFiles.current = { ...files };
+      readyToPersist.current = true;
+      persistReadyTimer.current = null;
+    }, 100);
+  }, []);
 
   useEffect(() => {
     if (!payload || diagramReadySent.current || !window.__DDD_APPLET__) {
@@ -185,28 +218,34 @@ export function App(): JSX.Element {
 
     if (external) {
       suppressChangeUntil.current = Date.now() + 400;
+    } else {
+      suppressChangeUntil.current = Date.now() + 500;
     }
 
     latestElements.current = parsed.elements;
     latestFiles.current = parsed.files;
     lastPersistedScene.current = nextFingerprint;
+    lastPersistedLiveCount.current = liveElementCount(parsed.elements);
 
     const api = apiRef.current;
     if (api) {
+      readyToPersist.current = false;
       api.updateScene({
         elements: parsed.elements,
         files: parsed.files,
         captureUpdate: CaptureUpdateAction.NEVER,
       });
+      schedulePersistReady(api);
       return;
     }
 
+    readyToPersist.current = false;
     setPayload({
       elements: parsed.elements,
       appState: preserveViewState(parsed.appState, latestAppState.current),
       files: parsed.files,
     });
-  }, []);
+  }, [schedulePersistReady]);
 
   const flushPendingExternalLoad = useCallback(() => {
     const raw = pendingExternalLoad.current;
@@ -254,12 +293,11 @@ export function App(): JSX.Element {
 
   useEffect(() => {
     if (initial?.content) {
-      latestElements.current = parsePayload(initial.content).elements;
-      latestFiles.current = parsePayload(initial.content).files;
-      lastPersistedScene.current = sceneFingerprint(
-        latestElements.current,
-        latestFiles.current
-      );
+      const parsed = parsePayload(initial.content);
+      latestElements.current = parsed.elements;
+      latestFiles.current = parsed.files;
+      lastPersistedScene.current = sceneFingerprint(parsed.elements, parsed.files);
+      lastPersistedLiveCount.current = liveElementCount(parsed.elements);
     }
 
     const onMessage = (
@@ -343,6 +381,9 @@ export function App(): JSX.Element {
     return () => {
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown, true);
+      if (persistReadyTimer.current !== null) {
+        window.clearTimeout(persistReadyTimer.current);
+      }
     };
   }, [applyExternalPayload, insertDesign]);
 
@@ -371,23 +412,10 @@ export function App(): JSX.Element {
           viewModeEnabled={false}
           excalidrawAPI={(api) => {
             apiRef.current = api;
-            if (!sceneBootstrapped.current) {
-              sceneBootstrapped.current = true;
-              latestElements.current = payload.elements;
-              latestFiles.current = payload.files;
-              lastPersistedScene.current = sceneFingerprint(payload.elements, payload.files);
-              api.updateScene({
-                elements: payload.elements,
-                files: payload.files,
-                captureUpdate: CaptureUpdateAction.NEVER,
-              });
-            }
+            suppressChangeUntil.current = Date.now() + 500;
+            schedulePersistReady(api);
           }}
-          initialData={{
-            appState: {
-              viewModeEnabled: false,
-            },
-          }}
+          initialData={excalidrawInitialData}
           onPointerDown={() => {
             isPointerDown.current = true;
           }}
@@ -401,7 +429,15 @@ export function App(): JSX.Element {
             latestAppState.current = appState;
             latestElements.current = elements;
             latestFiles.current = files;
+            if (!readyToPersist.current) {
+              return;
+            }
             if (Date.now() < suppressChangeUntil.current) {
+              return;
+            }
+
+            const liveCount = liveElementCount(elements);
+            if (liveCount === 0 && lastPersistedLiveCount.current > 0) {
               return;
             }
 
@@ -410,6 +446,7 @@ export function App(): JSX.Element {
               return;
             }
             lastPersistedScene.current = fingerprint;
+            lastPersistedLiveCount.current = liveCount;
 
             sendDocumentChange(elements, appState, files);
           }}

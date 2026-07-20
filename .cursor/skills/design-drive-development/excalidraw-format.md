@@ -118,3 +118,60 @@ Excalidraw uses numeric font ids. Virgil is commonly `3`.
 2. Change only affected elements and connected arrows; keep their semantics accurate.
 3. Shift coordinates to reduce overlapping arrows when metadata says so.
 4. Write valid JSON; pretty-print with 2-space indent.
+
+## Legend panel
+
+Required on every diagram. Upper-left; sample swatches must match element colors exactly.
+
+### Background card
+
+```json
+{
+  "id": "legend-panel",
+  "type": "rectangle",
+  "x": 24,
+  "y": 24,
+  "width": 248,
+  "height": 280,
+  "backgroundColor": "#ffffff",
+  "strokeColor": "#ced4da",
+  "roughness": 0,
+  "roundness": { "type": 3 },
+  "groupIds": ["legend"]
+}
+```
+
+### Title + row (swatch + label)
+
+```json
+{
+  "id": "legend-row-service-swatch",
+  "type": "rectangle",
+  "x": 40,
+  "y": 72,
+  "width": 28,
+  "height": 18,
+  "backgroundColor": "#a5d8ff",
+  "strokeColor": "#339af0",
+  "roughness": 0,
+  "roundness": { "type": 3 },
+  "groupIds": ["legend"]
+}
+```
+
+```json
+{
+  "id": "legend-row-service-label",
+  "type": "text",
+  "x": 76,
+  "y": 68,
+  "width": 180,
+  "height": 24,
+  "text": "Service (microservice, API)",
+  "fontSize": 13,
+  "textAlign": "left",
+  "groupIds": ["legend"]
+}
+```
+
+Keep one row per distinct (shape, fill, stroke) convention used on the canvas. Lock legend elements (`"locked": true`) when the diagram is complete so users do not move them accidentally.

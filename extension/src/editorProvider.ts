@@ -22,6 +22,23 @@ const OUTPUT_CHANNEL = "Design Drive Development (DDD)";
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL);
 const AUTO_SAVE_DELAY_MS = 300;
 
+function liveElementCountFromJson(text: string): number {
+  try {
+    const parsed = JSON.parse(text) as { elements?: Array<{ isDeleted?: boolean }> };
+    return (parsed.elements ?? []).filter((element) => !element.isDeleted).length;
+  } catch {
+    return 0;
+  }
+}
+
+function readDiskLiveCount(readDiskBytes: () => Uint8Array | undefined): number {
+  const bytes = readDiskBytes();
+  if (!bytes) {
+    return 0;
+  }
+  return liveElementCountFromJson(new TextDecoder().decode(bytes));
+}
+
 const WEBVIEW_HTML = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -279,7 +296,7 @@ class ExcalidrawEditor implements vscode.Disposable {
 
     this.disposables.push(
       this.panel.onDidChangeViewState((event) => {
-        if (!event.webviewPanel.visible) {
+        if (!event.webviewPanel.visible && this.hasUnsavedWebviewEdits) {
           void this.persistToDisk();
         }
       }),
@@ -574,11 +591,18 @@ class ExcalidrawEditor implements vscode.Disposable {
       return;
     }
 
+    const diskText = new TextDecoder().decode(bytes);
     const diskHash = hashContent(bytes);
-    if (!force) {
-      if (this.hasUnsavedWebviewEdits) {
+    const diskLive = liveElementCountFromJson(diskText);
+    const memoryLive = liveElementCountFromJson(this.document.getText());
+
+    if (!force && this.hasUnsavedWebviewEdits) {
+      if (diskLive <= memoryLive) {
         return;
       }
+    }
+
+    if (!force) {
       if (diskHash === this.lastPushedHash) {
         return;
       }
@@ -606,6 +630,20 @@ class ExcalidrawEditor implements vscode.Disposable {
       return;
     }
 
+    const incomingLive = liveElementCountFromJson(content);
+    const currentLive = liveElementCountFromJson(this.document.getText());
+    const diskLive = readDiskLiveCount(() => this.readDiskBytes());
+    if (incomingLive === 0 && (currentLive > 0 || diskLive > 0)) {
+      outputChannel.appendLine("[change] ignored empty wipe");
+      return;
+    }
+    if (incomingLive < diskLive) {
+      outputChannel.appendLine("[change] ignored — disk has more elements");
+      this.hasUnsavedWebviewEdits = false;
+      this.pushLatestFromDisk("change-guard", true);
+      return;
+    }
+
     const changed = this.document.updateFromText(content, false);
     if (!changed) {
       return;
@@ -627,6 +665,21 @@ class ExcalidrawEditor implements vscode.Disposable {
 
   async persistToDisk(): Promise<void> {
     this.cancelPendingSave();
+
+    const diskBytes = this.readDiskBytes();
+    if (diskBytes) {
+      const diskText = new TextDecoder().decode(diskBytes);
+      const diskLive = liveElementCountFromJson(diskText);
+      const memoryLive = liveElementCountFromJson(this.document.getText());
+      if (memoryLive < diskLive) {
+        outputChannel.appendLine(
+          `[autosave] blocked stale memory (${memoryLive} vs disk ${diskLive}) — reloading`
+        );
+        this.hasUnsavedWebviewEdits = false;
+        this.pushLatestFromDisk("disk-guard", true);
+        return;
+      }
+    }
 
     try {
       await this.document.save();
@@ -716,7 +769,9 @@ class ExcalidrawEditor implements vscode.Disposable {
   }
 
   dispose(): void {
-    void this.persistToDisk();
+    if (this.hasUnsavedWebviewEdits) {
+      void this.persistToDisk();
+    }
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
     }

@@ -300,6 +300,42 @@ Also add a bound text label on arrows when the protocol or flow name should be v
 
 Selection refs and chat scope use element labels and ids — good semantics make `@architecture.excalidraw:… · Auth Service` accurate.
 
+## Visual legend (required)
+
+Every **visual** diagram (`.excalidraw` and similar canvas formats) MUST include a compact **Legend** in the **upper-left** corner so a human can read the drawing without guessing.
+
+### Placement and layout
+
+- Anchor the legend at roughly **x 24–32**, **y 24–32** on the canvas.
+- Keep width ≤ **260px** so the main diagram starts around **x ≥ 300**.
+- Group legend elements with a shared `groupIds` value (e.g. `"legend"`) or a light background rectangle behind all legend rows.
+- Use **roughness 0**, solid fills, and consistent row height (~28px). Legend is reference UI — not hand-drawn sketch.
+
+### What the legend must explain
+
+List **only symbols and colors actually used** on this diagram:
+
+| Explain | How (one row each) |
+|---------|-------------------|
+| **Shape** | Small swatch of the shape (rounded rect, ellipse, diamond, arrow stroke, …) |
+| **Fill / stroke color** | Swatch uses the **exact** `backgroundColor` / `strokeColor` from the diagram |
+| **Meaning** | Short label: "Service", "Database", "Viewer host", "Error path", … |
+
+Add rows for arrows if line style matters (solid sync vs dashed async).
+
+### Row pattern
+
+Each row = **swatch** (24×18 px sample) + **label** (13–14px text, left-aligned). Optional section title **"Legend"** (15–16px) at the top of the panel.
+
+### When editing
+
+- **Create:** define the color/shape language first, build the legend, then draw the diagram using only those conventions.
+- **Patch:** if you add a new color or shape type, **add a legend row** in the same change.
+- **Remove:** drop unused legend rows when no element uses that convention anymore.
+- Do **not** duplicate the full legend spec in `*.metadata.md` — metadata holds project-wide rules; the legend on canvas is the per-diagram key.
+
+See [excalidraw-format.md](excalidraw-format.md#legend-panel) for JSON patterns.
+
 ## Editing `.excalidraw` files
 
 The file is JSON with this shape:

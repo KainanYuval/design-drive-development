@@ -101,10 +101,14 @@ impl HostSession {
         };
 
         let disk_hash = hash_content(&disk_text);
-        if !force {
-            if self.has_unsaved_webview_edits {
+        if !force && self.has_unsaved_webview_edits {
+            let disk_live = live_element_count_from_json(&disk_text);
+            let memory_live = live_element_count_from_json(&self.diagram_content);
+            if disk_live <= memory_live {
                 return;
             }
+        }
+        if !force {
             if disk_hash == self.content_hash {
                 self.last_pushed_hash = disk_hash;
                 return;
@@ -125,6 +129,11 @@ impl HostSession {
         if !self.accept_webview_edits {
             return;
         }
+        let incoming_live = live_element_count_from_json(content);
+        let current_live = live_element_count_from_json(&self.diagram_content);
+        if incoming_live == 0 && current_live > 0 {
+            return;
+        }
         if !self.update_from_text(content) {
             return;
         }
@@ -143,6 +152,16 @@ impl HostSession {
     }
 
     fn persist_to_disk(&mut self) -> std::io::Result<()> {
+        let disk_text = std::fs::read_to_string(&self.diagram_path).unwrap_or_default();
+        let disk_live = live_element_count_from_json(&disk_text);
+        let memory_live = live_element_count_from_json(&self.diagram_content);
+        if memory_live < disk_live {
+            self.diagram_content = disk_text;
+            self.content_hash = hash_content(&self.diagram_content);
+            self.has_unsaved_webview_edits = false;
+            self.last_pushed_hash = self.content_hash.clone();
+            return Ok(());
+        }
         std::fs::write(&self.diagram_path, &self.diagram_content)?;
         self.has_unsaved_webview_edits = false;
         self.last_pushed_hash = self.content_hash.clone();
@@ -176,6 +195,22 @@ pub fn hash_content(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
     format!("{:x}", hasher.finalize())
+}
+
+fn live_element_count_from_json(text: &str) -> usize {
+    let Ok(value) = serde_json::from_str::<Value>(text) else {
+        return 0;
+    };
+    value
+        .get("elements")
+        .and_then(Value::as_array)
+        .map(|elements| {
+            elements
+                .iter()
+                .filter(|element| element.get("isDeleted").and_then(Value::as_bool) != Some(true))
+                .count()
+        })
+        .unwrap_or(0)
 }
 
 pub fn build_init_script(path: &Path, content: &str) -> String {

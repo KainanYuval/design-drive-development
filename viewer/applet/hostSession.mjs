@@ -11,6 +11,15 @@ function hashContent(text) {
   return createHash("sha256").update(encoder.encode(text)).digest("hex");
 }
 
+function liveElementCountFromJson(text) {
+  try {
+    const parsed = JSON.parse(text);
+    return (parsed.elements ?? []).filter((element) => !element.isDeleted).length;
+  } catch {
+    return 0;
+  }
+}
+
 export function findWorkspaceRoot(diagramPath) {
   let dir = path.dirname(path.resolve(diagramPath));
   const fsRoot = path.parse(dir).root;
@@ -71,7 +80,11 @@ export function createHostSession({ diagramPath, workspaceRoot, pushToRenderer }
     const diskHash = hashContent(diskText);
     if (!force) {
       if (hasUnsavedWebviewEdits) {
-        return;
+        const diskLive = liveElementCountFromJson(diskText);
+        const memoryLive = liveElementCountFromJson(diagramContent);
+        if (diskLive <= memoryLive) {
+          return;
+        }
       }
       if (diskHash === contentHash) {
         lastPushedHash = diskHash;
@@ -107,6 +120,22 @@ export function createHostSession({ diagramPath, workspaceRoot, pushToRenderer }
 
   async function persistToDisk() {
     cancelPendingSave();
+    let diskText;
+    try {
+      diskText = await readDiskText();
+    } catch {
+      diskText = diagramContent;
+    }
+    const diskLive = liveElementCountFromJson(diskText);
+    const memoryLive = liveElementCountFromJson(diagramContent);
+    if (memoryLive < diskLive) {
+      updateFromText(diskText);
+      lastPushedHash = hashContent(diagramContent);
+      hasUnsavedWebviewEdits = false;
+      markSaved();
+      await pushLatestFromDisk("disk-guard", true);
+      return;
+    }
     await writeFile(diagramPath, diagramContent, "utf8");
     const fileStat = await stat(diagramPath);
     diagramMtimeMs = fileStat.mtimeMs;
@@ -124,6 +153,22 @@ export function createHostSession({ diagramPath, workspaceRoot, pushToRenderer }
 
   async function handleWebviewChange(content) {
     if (!acceptWebviewEdits) {
+      return;
+    }
+    const incomingLive = liveElementCountFromJson(content);
+    const currentLive = liveElementCountFromJson(diagramContent);
+    let diskLive = 0;
+    try {
+      diskLive = liveElementCountFromJson(await readDiskText());
+    } catch {
+      diskLive = currentLive;
+    }
+    if (incomingLive === 0 && (currentLive > 0 || diskLive > 0)) {
+      return;
+    }
+    if (incomingLive < diskLive) {
+      hasUnsavedWebviewEdits = false;
+      await pushLatestFromDisk("change-guard", true);
       return;
     }
     const changed = updateFromText(content);
