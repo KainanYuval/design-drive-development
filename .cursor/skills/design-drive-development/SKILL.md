@@ -336,6 +336,27 @@ Each row = **swatch** (24×18 px sample) + **label** (13–14px text, left-align
 
 See [excalidraw-format.md](excalidraw-format.md#legend-panel) for JSON patterns.
 
+## Visual quality loop (capture → score → patch)
+
+When layout must look polished (not just structurally valid), run the RL-style iteration workflow:
+
+1. **Capture:** `node scripts/capture-diagram.mjs <file.excalidraw> --out preview.png`
+2. **Score:** `node scripts/evaluate-diagram-visual.mjs <file.excalidraw> --capture`
+3. **Patch** from `review.md` issues; repeat until score ≥ 80.
+
+Full orchestration, agent roles, and artifact layout: [design-visual-iteration.md](design-visual-iteration.md). Saved variants live under `project/experiments/design-visual-iteration/`.
+
+## Extension layout lint (live)
+
+When a diagram is open in the DDD extension, the host runs layout lint (~600ms after edits) and:
+
+1. **Problems panel** — warnings/errors on the `.excalidraw` file (line ≈ element id).
+2. **Sidecar for agents** — `<diagram>.diagram-lint.json` next to the file (same basename).
+
+**Read the sidecar** at end of design turns when present. Fix or explain each issue before accept menu.
+
+Codes include: `arrow-through-shape`, `arrow-crosses-arrow`, `arrow-through-label`, `text-overflow-container`, `text-outside-container`, `text-occluded-by-shape`, `arrow-unbound`.
+
 ## Editing `.excalidraw` files
 
 The file is JSON with this shape:

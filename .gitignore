@@ -27,6 +27,7 @@ Thumbs.db
 npm-debug.log*
 temp
 temp/
+scripts/.capture-cache/
 
 # Local-only
 viewer/dist/

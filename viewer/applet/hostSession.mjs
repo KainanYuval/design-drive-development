@@ -79,12 +79,16 @@ export function createHostSession({ diagramPath, workspaceRoot, pushToRenderer }
 
     const diskHash = hashContent(diskText);
     if (!force) {
-      if (hasUnsavedWebviewEdits) {
-        const diskLive = liveElementCountFromJson(diskText);
-        const memoryLive = liveElementCountFromJson(diagramContent);
-        if (diskLive <= memoryLive) {
-          return;
-        }
+      if (hasUnsavedWebviewEdits && diskHash === lastWebviewSaveHash) {
+        return;
+      }
+      if (
+        hasUnsavedWebviewEdits &&
+        diskHash !== contentHash &&
+        diskHash !== lastWebviewSaveHash
+      ) {
+        hasUnsavedWebviewEdits = false;
+        cancelPendingSave();
       }
       if (diskHash === contentHash) {
         lastPushedHash = diskHash;
@@ -125,6 +129,18 @@ export function createHostSession({ diagramPath, workspaceRoot, pushToRenderer }
       diskText = await readDiskText();
     } catch {
       diskText = diagramContent;
+    }
+    const diskHash = hashContent(diskText);
+    if (
+      diskHash !== contentHash &&
+      diskHash !== lastWebviewSaveHash
+    ) {
+      updateFromText(diskText);
+      lastPushedHash = diskHash;
+      hasUnsavedWebviewEdits = false;
+      markSaved();
+      await pushLatestFromDisk("persist-guard", true);
+      return;
     }
     const diskLive = liveElementCountFromJson(diskText);
     const memoryLive = liveElementCountFromJson(diagramContent);

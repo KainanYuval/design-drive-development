@@ -110,7 +110,7 @@ fn main() {
         *control_flow = ControlFlow::WaitUntil(Instant::now() + std::time::Duration::from_millis(16));
 
         if let Ok(mut session) = host.lock() {
-            session.tick_autosave();
+            session.tick_autosave(&webview);
         }
 
         match event {
@@ -125,7 +125,7 @@ fn main() {
                         serde_json::from_str(&body).unwrap_or(serde_json::json!({}));
                     let mut session = host_ipc.lock().expect("host lock");
                     if session.handle_message(&message, &webview) {
-                        session.flush_save();
+                        session.flush_save(&webview);
                         std::process::exit(0);
                     }
                 }
@@ -139,7 +139,7 @@ fn main() {
                 ..
             } => {
                 if let Ok(mut session) = host_ipc.lock() {
-                    session.flush_save();
+                    session.flush_save(&webview);
                 }
                 *control_flow = ControlFlow::Exit;
             }

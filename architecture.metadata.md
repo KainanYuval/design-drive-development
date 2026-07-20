@@ -7,6 +7,7 @@
 
 ## Decisions
 
+- **architecture.excalidraw** documents full software architecture (5 swimlanes: authoring, persistence, hosts, webview, build) — not just product flow.
 - Default standalone viewer: Rust applet (`npm run view --open`).
 - Electron applet kept as fallback (`npm run view:electron --open`).
 - Shared webview bundle: `extension/webview` → `extension/media` + `viewer/dist`.
@@ -14,7 +15,7 @@
 ## Visual Preferences
 
 - **Legend (required):** compact panel upper-left (~24,24); one row per shape/color used; swatches match element fills exactly; main diagram starts at x ≥ 300.
-- **This diagram (DDD repo):** yellow = author/agent; green = file on disk; blue = Cursor extension; orange = Rust applet (default); purple = Electron applet; gray = shared Excalidraw webview; dark arrows = watch / autosave / load.
+- **This diagram (DDD repo):** yellow = agent/tooling; green = disk artifact; blue = Cursor extension; orange = Rust host; purple = Electron host; gray = shared webview; pink = build/CLI; solid arrows = sync/IPC; dashed = build/spawn.
 - Rounded rectangles for hosts and storage; roughness 0 on legend and labels.
 - Horizontal layout for primary data flow.
 

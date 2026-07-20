@@ -12,6 +12,7 @@ pub struct HostSession {
     diagram_content: String,
     content_hash: String,
     last_pushed_hash: String,
+    last_webview_save_hash: String,
     webview_ready: bool,
     accept_webview_edits: bool,
     has_unsaved_webview_edits: bool,
@@ -26,7 +27,8 @@ impl HostSession {
             diagram_path,
             diagram_content: content,
             content_hash: content_hash.clone(),
-            last_pushed_hash: content_hash,
+            last_pushed_hash: content_hash.clone(),
+            last_webview_save_hash: content_hash,
             webview_ready: false,
             accept_webview_edits: false,
             has_unsaved_webview_edits: false,
@@ -64,8 +66,14 @@ impl HostSession {
             }
             "save" => {
                 self.save_deadline = None;
-                if let Err(error) = self.persist_to_disk() {
-                    eprintln!("[ddd-applet-rust] save failed: {error}");
+                match self.persist_to_disk() {
+                    Ok(need_push) if need_push => {
+                        self.push_latest_from_disk(webview, true, true);
+                    }
+                    Err(error) => {
+                        eprintln!("[ddd-applet-rust] save failed: {error}");
+                    }
+                    _ => {}
                 }
             }
             _ => {}
@@ -74,7 +82,7 @@ impl HostSession {
         false
     }
 
-    pub fn tick_autosave(&mut self) {
+    pub fn tick_autosave(&mut self, webview: &WebView) {
         let Some(deadline) = self.save_deadline else {
             return;
         };
@@ -82,8 +90,14 @@ impl HostSession {
             return;
         }
         self.save_deadline = None;
-        if let Err(error) = self.persist_to_disk() {
-            eprintln!("[ddd-applet-rust] autosave failed: {error}");
+        match self.persist_to_disk() {
+            Ok(need_push) if need_push => {
+                self.push_latest_from_disk(webview, true, true);
+            }
+            Err(error) => {
+                eprintln!("[ddd-applet-rust] autosave failed: {error}");
+            }
+            _ => {}
         }
     }
 
@@ -101,12 +115,16 @@ impl HostSession {
         };
 
         let disk_hash = hash_content(&disk_text);
-        if !force && self.has_unsaved_webview_edits {
-            let disk_live = live_element_count_from_json(&disk_text);
-            let memory_live = live_element_count_from_json(&self.diagram_content);
-            if disk_live <= memory_live {
-                return;
-            }
+        if !force && self.has_unsaved_webview_edits && disk_hash == self.last_webview_save_hash {
+            return;
+        }
+        if !force
+            && self.has_unsaved_webview_edits
+            && disk_hash != self.content_hash
+            && disk_hash != self.last_webview_save_hash
+        {
+            self.has_unsaved_webview_edits = false;
+            self.save_deadline = None;
         }
         if !force {
             if disk_hash == self.content_hash {
@@ -151,8 +169,17 @@ impl HostSession {
         true
     }
 
-    fn persist_to_disk(&mut self) -> std::io::Result<()> {
+    fn persist_to_disk(&mut self) -> std::io::Result<bool> {
         let disk_text = std::fs::read_to_string(&self.diagram_path).unwrap_or_default();
+        let disk_hash = hash_content(&disk_text);
+        if disk_hash != self.content_hash && disk_hash != self.last_webview_save_hash {
+            self.diagram_content = disk_text;
+            self.content_hash = disk_hash.clone();
+            self.has_unsaved_webview_edits = false;
+            self.last_pushed_hash = disk_hash;
+            self.last_webview_save_hash = self.content_hash.clone();
+            return Ok(true);
+        }
         let disk_live = live_element_count_from_json(&disk_text);
         let memory_live = live_element_count_from_json(&self.diagram_content);
         if memory_live < disk_live {
@@ -160,12 +187,14 @@ impl HostSession {
             self.content_hash = hash_content(&self.diagram_content);
             self.has_unsaved_webview_edits = false;
             self.last_pushed_hash = self.content_hash.clone();
-            return Ok(());
+            self.last_webview_save_hash = self.content_hash.clone();
+            return Ok(true);
         }
         std::fs::write(&self.diagram_path, &self.diagram_content)?;
         self.has_unsaved_webview_edits = false;
         self.last_pushed_hash = self.content_hash.clone();
-        Ok(())
+        self.last_webview_save_hash = self.content_hash.clone();
+        Ok(false)
     }
 
     fn push_load(&self, webview: &WebView, external: bool) {
@@ -183,10 +212,16 @@ impl HostSession {
         }
     }
 
-    pub fn flush_save(&mut self) {
+    pub fn flush_save(&mut self, webview: &WebView) {
         self.save_deadline = None;
-        if let Err(error) = self.persist_to_disk() {
-            eprintln!("[ddd-applet-rust] flush save failed: {error}");
+        match self.persist_to_disk() {
+            Ok(need_push) if need_push => {
+                self.push_latest_from_disk(webview, true, true);
+            }
+            Err(error) => {
+                eprintln!("[ddd-applet-rust] flush save failed: {error}");
+            }
+            _ => {}
         }
     }
 }

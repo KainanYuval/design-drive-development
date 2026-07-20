@@ -1,5 +1,29 @@
 # Running spec
 
+### 2026-07-20 — No disk chips under excal arrow path
+- **Decision:** Satellite disk paths (`*.metadata.md`, `.designs/`, `project/`) live as subtitle line inside the `excal` bar; no separate chip boxes between excal and host columns.
+- **Rationale:** Vertical excal→host arrows crossed chip rectangles (`arrow-through-shape`); looked like arrow drawn over blob.
+
+### 2026-07-20 — Swimlane label gutter in architecture generator
+- **Decision:** Reserve ~148px left gutter inside each lane for swimlane labels; content columns start after gutter so yellow/host boxes never cover `lane-*-lbl` text.
+- **Rationale:** Screenshot showed “1 · Authoring” clipped by skill box; rubric/linter now include `text-occluded-by-shape` / `no-label-occlusion`.
+
+### 2026-07-20 — Diagram layout linter (extension)
+- **Decision:** DDD extension runs debounced layout lint (~600ms) on open diagram + after webview/disk sync. Surfaces **Problems** diagnostics on the `.excalidraw` URI and writes **`<basename>.diagram-lint.json`** beside the diagram. Agents must read the sidecar (or Problems) before ending a design turn when issues exist.
+- **Rationale:** Layout bugs (arrow through boxes, clipped labels) are invisible in JSON; agents need machine-readable feedback without screenshot/manual review every edit.
+- **Remarks — checks (v1, JSON geometry only):**
+  - `arrow-through-shape` / `arrow-through-label` / `arrow-crosses-arrow` (warning)
+  - `text-overflow-container` (error), `text-outside-container` (warning), `text-occluded-by-shape` (error — free labels covered by boxes; center-outside heuristic)
+  - `arrow-unbound` (warning)
+  - No pixel/render analysis in extension; headless capture scoring stays in `scripts/` for experiments.
+- **Remarks — implementation:** `extension/src/diagramLint.ts` (rules), `diagramLintReport.ts` (diagnostics + sidecar). Skill documents codes under “Extension layout lint”.
+- **Remarks — sidecar shape:** `{ diagram, generatedAt, issueCount, issues[{ code, severity, elementId, message, hint }], agentNote }`.
+- **Remarks — not in v1:** Rust/Electron applets do not lint yet; swimlane/legend rubric from `scripts/lib/diagram-visual-score.mjs` not duplicated in extension.
+
+### 2026-07-20 — External disk wins over stale webview (hash guard)
+- **Decision:** Host reload/persist guards use SHA-256 vs `lastWebviewSaveHash`, not element count. External agent/script write with same element count reloads open tab; autosave blocked from overwriting newer disk.
+- **Rationale:** Count-only guard let extension ignore agent full rewrites then autosave stale canvas back to disk.
+
 ### 2026-07-20 — Fix empty-diagram race (Strict Mode + blur save)
 - **Decision:** Webview loads via `initialData.elements` (no empty mount + one-shot bootstrap ref); defer `readyToPersist` until API scene settles; extension only autosaves on blur/close when `hasUnsavedWebviewEdits`; persist rejects when memory element count < disk.
 - **Rationale:** React Strict Mode remount skipped bootstrap leaving empty canvas; blur persist wrote stale empty memory over agent/script disk writes.

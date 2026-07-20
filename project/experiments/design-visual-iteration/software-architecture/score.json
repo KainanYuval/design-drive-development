@@ -1,0 +1,96 @@
+{
+  "variant": "software-architecture",
+  "diagramPath": "/Users/yuvalkainan/Desktop/no_stories/architecture.excalidraw",
+  "pngPath": "/tmp/arch-preview.png",
+  "pixelStats": {
+    "width": 1000,
+    "height": 750,
+    "nonWhiteRatio": 0.63792,
+    "legendRegionInk": 0.4637231089521166
+  },
+  "score": 100,
+  "checks": [
+    {
+      "id": "legend-complete",
+      "pass": true,
+      "weight": 8
+    },
+    {
+      "id": "swimlanes",
+      "pass": true,
+      "weight": 14,
+      "detail": "10 lanes, 5 labels"
+    },
+    {
+      "id": "primary-flow-left-to-right",
+      "pass": true,
+      "weight": 10,
+      "detail": "vertical swimlane flow"
+    },
+    {
+      "id": "no-arrow-crossings",
+      "pass": true,
+      "weight": 16,
+      "detail": "0 crossing pair(s)"
+    },
+    {
+      "id": "orthogonal-arrows",
+      "pass": true,
+      "weight": 12,
+      "detail": "0 diagonal"
+    },
+    {
+      "id": "arrows-bound",
+      "pass": true,
+      "weight": 10,
+      "detail": "0 unbound"
+    },
+    {
+      "id": "clean-disk-fan-out",
+      "pass": true,
+      "weight": 14,
+      "detail": "3 vertical fan-out"
+    },
+    {
+      "id": "no-box-overlap",
+      "pass": true,
+      "weight": 8,
+      "detail": "0 overlaps"
+    },
+    {
+      "id": "title-present",
+      "pass": true,
+      "weight": 6
+    },
+    {
+      "id": "content-framing",
+      "pass": true,
+      "weight": 10,
+      "detail": "73% frame fill, h=670"
+    },
+    {
+      "id": "render-not-blank",
+      "pass": true,
+      "weight": 6,
+      "detail": "63.8% ink"
+    }
+  ],
+  "issues": [],
+  "stats": {
+    "elements": 73,
+    "boxes": 14,
+    "arrows": 13,
+    "swimlanes": 10,
+    "arrowCrossings": 0,
+    "diagonalArrows": 0,
+    "contentBBox": {
+      "minX": 300,
+      "minY": 24,
+      "maxX": 1220,
+      "maxY": 694,
+      "width": 920,
+      "height": 670
+    }
+  },
+  "pass": true
+}

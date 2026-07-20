@@ -1,0 +1,96 @@
+{
+  "variant": "v2-polished",
+  "diagramPath": "/Users/yuvalkainan/Desktop/no_stories/project/experiments/design-visual-iteration/v2-polished/diagram.excalidraw",
+  "pngPath": "/Users/yuvalkainan/Desktop/no_stories/project/experiments/design-visual-iteration/v2-polished/preview.png",
+  "pixelStats": {
+    "width": 1000,
+    "height": 570,
+    "nonWhiteRatio": 0.5952982456140351,
+    "legendRegionInk": 0.336706258565555
+  },
+  "score": 100,
+  "checks": [
+    {
+      "id": "legend-complete",
+      "pass": true,
+      "weight": 8
+    },
+    {
+      "id": "swimlanes",
+      "pass": true,
+      "weight": 14,
+      "detail": "8 lanes, 4 labels"
+    },
+    {
+      "id": "primary-flow-left-to-right",
+      "pass": true,
+      "weight": 10,
+      "detail": "vertical swimlane flow"
+    },
+    {
+      "id": "no-arrow-crossings",
+      "pass": true,
+      "weight": 16,
+      "detail": "0 crossing pair(s)"
+    },
+    {
+      "id": "orthogonal-arrows",
+      "pass": true,
+      "weight": 12,
+      "detail": "0 diagonal"
+    },
+    {
+      "id": "arrows-bound",
+      "pass": true,
+      "weight": 10,
+      "detail": "0 unbound"
+    },
+    {
+      "id": "clean-disk-fan-out",
+      "pass": true,
+      "weight": 14,
+      "detail": "3 vertical fan-out"
+    },
+    {
+      "id": "no-box-overlap",
+      "pass": true,
+      "weight": 8,
+      "detail": "0 overlaps"
+    },
+    {
+      "id": "title-present",
+      "pass": true,
+      "weight": 6
+    },
+    {
+      "id": "content-framing",
+      "pass": true,
+      "weight": 10,
+      "detail": "54% frame fill, h=490"
+    },
+    {
+      "id": "render-not-blank",
+      "pass": true,
+      "weight": 6,
+      "detail": "59.5% ink"
+    }
+  ],
+  "issues": [],
+  "stats": {
+    "elements": 46,
+    "boxes": 6,
+    "arrows": 7,
+    "swimlanes": 8,
+    "arrowCrossings": 0,
+    "diagonalArrows": 0,
+    "contentBBox": {
+      "minX": 300,
+      "minY": 28,
+      "maxX": 1220,
+      "maxY": 518,
+      "width": 920,
+      "height": 490
+    }
+  },
+  "pass": true
+}

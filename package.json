@@ -1,0 +1,17 @@
+{
+  "name": "no_stories",
+  "version": "1.0.0",
+  "description": "Architecture diagrams in your repo that your Cursor agent can edit — file on disk is truth. Excalidraw today; Mermaid planned.",
+  "main": "index.js",
+  "scripts": {
+    "capture-diagram": "node scripts/capture-diagram.mjs",
+    "design:evaluate": "node scripts/evaluate-diagram-visual.mjs",
+    "design:iterate": "node scripts/design-visual-iterate.mjs --max-iterations 3 --min-iterations 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}

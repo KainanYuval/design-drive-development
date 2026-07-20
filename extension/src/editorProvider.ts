@@ -17,10 +17,14 @@ import {
   saveDesignGroup,
 } from "./designLibrary";
 import { ensureDesignsFolderConsent } from "./designsConsent";
+import { DiagramLintReporter } from "./diagramLintReport";
 
 const OUTPUT_CHANNEL = "Design Drive Development (DDD)";
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL);
 const AUTO_SAVE_DELAY_MS = 300;
+const LINT_DELAY_MS = 600;
+
+let lintReporter: DiagramLintReporter;
 
 function liveElementCountFromJson(text: string): number {
   try {
@@ -70,6 +74,7 @@ const WEBVIEW_HTML = `<!DOCTYPE html>
 
 export class ExcalidrawEditorProvider implements vscode.CustomEditorProvider<ExcalidrawDocument> {
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
+    lintReporter = new DiagramLintReporter(outputChannel);
     const provider = new ExcalidrawEditorProvider(context);
     const editorRegistration = vscode.window.registerCustomEditorProvider(
       ExcalidrawEditorProvider.viewType,
@@ -162,7 +167,8 @@ export class ExcalidrawEditorProvider implements vscode.CustomEditorProvider<Exc
       reopenCommand,
       copySelectionCommand,
       saveDesignCommand,
-      insertDesignCommand
+      insertDesignCommand,
+      { dispose: () => lintReporter.dispose() }
     );
   }
 
@@ -251,6 +257,7 @@ export class ExcalidrawEditorProvider implements vscode.CustomEditorProvider<Exc
 class ExcalidrawEditor implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private saveTimer: NodeJS.Timeout | undefined;
+  private lintTimer: NodeJS.Timeout | undefined;
   private webviewReady = false;
   private acceptWebviewEdits = false;
   private hasUnsavedWebviewEdits = false;
@@ -293,6 +300,7 @@ class ExcalidrawEditor implements vscode.Disposable {
 
     this.panel.webview.html = this.getHtml(this.panel.webview);
     this.watchExternalChanges();
+    this.scheduleLint();
 
     this.disposables.push(
       this.panel.onDidChangeViewState((event) => {
@@ -593,21 +601,28 @@ class ExcalidrawEditor implements vscode.Disposable {
 
     const diskText = new TextDecoder().decode(bytes);
     const diskHash = hashContent(bytes);
-    const diskLive = liveElementCountFromJson(diskText);
-    const memoryLive = liveElementCountFromJson(this.document.getText());
+    const memoryHash = this.document.getHash();
 
-    if (!force && this.hasUnsavedWebviewEdits) {
-      if (diskLive <= memoryLive) {
-        return;
-      }
+    if (!force && this.hasUnsavedWebviewEdits && diskHash === this.lastWebviewSaveHash) {
+      // Local edits not yet flushed; disk still matches last save — ignore watch echo.
+      return;
+    }
+
+    if (!force && this.hasUnsavedWebviewEdits && diskHash !== memoryHash && diskHash !== this.lastWebviewSaveHash) {
+      outputChannel.appendLine(
+        `[${reason}] external disk change (${diskHash.slice(0, 8)}) — reloading over webview`
+      );
+      this.hasUnsavedWebviewEdits = false;
+      this.cancelPendingSave();
+      void vscode.window.setStatusBarMessage("Diagram updated on disk — reloaded", 3000);
     }
 
     if (!force) {
-      if (diskHash === this.lastPushedHash) {
+      if (diskHash === memoryHash) {
+        this.lastPushedHash = diskHash;
         return;
       }
-      if (diskHash === this.document.getHash()) {
-        this.lastPushedHash = diskHash;
+      if (diskHash === this.lastPushedHash) {
         return;
       }
     }
@@ -623,6 +638,16 @@ class ExcalidrawEditor implements vscode.Disposable {
     });
 
     outputChannel.appendLine(`[${reason}] pushed update (${diskHash.slice(0, 8)})`);
+    this.scheduleLint();
+  }
+
+  private scheduleLint(): void {
+    if (this.lintTimer) {
+      clearTimeout(this.lintTimer);
+    }
+    this.lintTimer = setTimeout(() => {
+      void lintReporter.publish(this.document.uri, this.document.getText());
+    }, LINT_DELAY_MS);
   }
 
   private async handleWebviewChange(content: string): Promise<void> {
@@ -651,6 +676,7 @@ class ExcalidrawEditor implements vscode.Disposable {
 
     this.hasUnsavedWebviewEdits = true;
     this.scheduleAutoSave();
+    this.scheduleLint();
   }
 
   private scheduleAutoSave(): void {
@@ -668,6 +694,20 @@ class ExcalidrawEditor implements vscode.Disposable {
 
     const diskBytes = this.readDiskBytes();
     if (diskBytes) {
+      const diskHash = hashContent(diskBytes);
+      const memoryHash = this.document.getHash();
+      if (
+        memoryHash !== diskHash &&
+        diskHash !== this.lastWebviewSaveHash
+      ) {
+        outputChannel.appendLine(
+          `[autosave] blocked — external disk change (${diskHash.slice(0, 8)}) — reloading`
+        );
+        this.hasUnsavedWebviewEdits = false;
+        this.pushLatestFromDisk("persist-guard", true);
+        return;
+      }
+
       const diskText = new TextDecoder().decode(diskBytes);
       const diskLive = liveElementCountFromJson(diskText);
       const memoryLive = liveElementCountFromJson(this.document.getText());
@@ -774,6 +814,9 @@ class ExcalidrawEditor implements vscode.Disposable {
     }
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
+    }
+    if (this.lintTimer) {
+      clearTimeout(this.lintTimer);
     }
     for (const pending of this.pendingSelectionRequests.values()) {
       clearTimeout(pending.timer);

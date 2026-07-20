@@ -39,7 +39,7 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function findElementLineRange(
+export function findElementLineRange(
   fileText: string,
   elementId: string
 ): { start: number; end: number } | undefined {
