@@ -1,7 +1,7 @@
 {
   "type": "excalidraw",
   "version": 2,
-  "source": "scripts/generate-software-architecture.mjs",
+  "source": "vscode-webview://0un8gg1p29uk9q8n6bojgbfthsp4a8mucrd7nfaakrvmdeseh9np",
   "elements": [
     {
       "angle": 0,
@@ -14,11 +14,11 @@
       ],
       "frameId": null,
       "seed": 82340,
-      "version": 2,
-      "versionNonce": 477721370,
+      "version": 3,
+      "versionNonce": 544945099,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "legend-panel",
@@ -32,7 +32,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "a0"
     },
     {
       "angle": 0,
@@ -45,11 +46,11 @@
       ],
       "frameId": null,
       "seed": 60916,
-      "version": 2,
-      "versionNonce": 304612239,
+      "version": 3,
+      "versionNonce": 517669477,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "legend-h",
@@ -70,7 +71,8 @@
       "containerId": null,
       "originalText": "Legend",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "a1"
     },
     {
       "angle": 0,
@@ -83,11 +85,11 @@
       ],
       "frameId": null,
       "seed": 82669,
-      "version": 2,
-      "versionNonce": 977642462,
+      "version": 3,
+      "versionNonce": 303596139,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-agent-sw",
@@ -101,7 +103,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "a2"
     },
     {
       "angle": 0,
@@ -114,11 +117,11 @@
       ],
       "frameId": null,
       "seed": 94406,
-      "version": 2,
-      "versionNonce": 685680346,
+      "version": 3,
+      "versionNonce": 460811717,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-agent-tx",
@@ -139,7 +142,8 @@
       "containerId": null,
       "originalText": "Agent / tooling",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "a3"
     },
     {
       "angle": 0,
@@ -152,11 +156,11 @@
       ],
       "frameId": null,
       "seed": 48420,
-      "version": 2,
-      "versionNonce": 451196390,
+      "version": 3,
+      "versionNonce": 206765323,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-disk-sw",
@@ -170,7 +174,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "a4"
     },
     {
       "angle": 0,
@@ -183,11 +188,11 @@
       ],
       "frameId": null,
       "seed": 52128,
-      "version": 2,
-      "versionNonce": 325585680,
+      "version": 3,
+      "versionNonce": 1412394277,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-disk-tx",
@@ -208,7 +213,8 @@
       "containerId": null,
       "originalText": "Disk artifact",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "a5"
     },
     {
       "angle": 0,
@@ -221,11 +227,11 @@
       ],
       "frameId": null,
       "seed": 3316,
-      "version": 2,
-      "versionNonce": 706607929,
+      "version": 3,
+      "versionNonce": 1520772011,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-ext-sw",
@@ -239,7 +245,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "a6"
     },
     {
       "angle": 0,
@@ -252,11 +259,11 @@
       ],
       "frameId": null,
       "seed": 86322,
-      "version": 2,
-      "versionNonce": 37258908,
+      "version": 3,
+      "versionNonce": 1752203397,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-ext-tx",
@@ -277,7 +284,8 @@
       "containerId": null,
       "originalText": "Extension host",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "a7"
     },
     {
       "angle": 0,
@@ -290,11 +298,11 @@
       ],
       "frameId": null,
       "seed": 71178,
-      "version": 2,
-      "versionNonce": 354632841,
+      "version": 3,
+      "versionNonce": 1966700107,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-rust-sw",
@@ -308,7 +316,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "a8"
     },
     {
       "angle": 0,
@@ -321,11 +330,11 @@
       ],
       "frameId": null,
       "seed": 30608,
-      "version": 2,
-      "versionNonce": 539693548,
+      "version": 3,
+      "versionNonce": 771237861,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-rust-tx",
@@ -346,7 +355,8 @@
       "containerId": null,
       "originalText": "Rust host ★",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "a9"
     },
     {
       "angle": 0,
@@ -359,11 +369,11 @@
       ],
       "frameId": null,
       "seed": 85938,
-      "version": 2,
-      "versionNonce": 33844038,
+      "version": 3,
+      "versionNonce": 1793750251,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-elec-sw",
@@ -377,7 +387,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aA"
     },
     {
       "angle": 0,
@@ -390,11 +401,11 @@
       ],
       "frameId": null,
       "seed": 62433,
-      "version": 2,
-      "versionNonce": 113389794,
+      "version": 3,
+      "versionNonce": 1725162309,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-elec-tx",
@@ -415,7 +426,8 @@
       "containerId": null,
       "originalText": "Electron host",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aB"
     },
     {
       "angle": 0,
@@ -428,11 +440,11 @@
       ],
       "frameId": null,
       "seed": 86122,
-      "version": 2,
-      "versionNonce": 609379096,
+      "version": 3,
+      "versionNonce": 188915595,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-web-sw",
@@ -446,7 +458,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aC"
     },
     {
       "angle": 0,
@@ -459,11 +472,11 @@
       ],
       "frameId": null,
       "seed": 43126,
-      "version": 2,
-      "versionNonce": 49791454,
+      "version": 3,
+      "versionNonce": 929116837,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-web-tx",
@@ -484,7 +497,8 @@
       "containerId": null,
       "originalText": "Shared webview",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aD"
     },
     {
       "angle": 0,
@@ -497,11 +511,11 @@
       ],
       "frameId": null,
       "seed": 99884,
-      "version": 2,
-      "versionNonce": 327173069,
+      "version": 3,
+      "versionNonce": 1350333995,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-build-sw",
@@ -515,7 +529,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aE"
     },
     {
       "angle": 0,
@@ -528,11 +543,11 @@
       ],
       "frameId": null,
       "seed": 8977,
-      "version": 2,
-      "versionNonce": 886485177,
+      "version": 3,
+      "versionNonce": 1548588549,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-build-tx",
@@ -553,7 +568,8 @@
       "containerId": null,
       "originalText": "Build / CLI",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aF"
     },
     {
       "angle": 0,
@@ -566,11 +582,11 @@
       ],
       "frameId": null,
       "seed": 48905,
-      "version": 2,
-      "versionNonce": 443791261,
+      "version": 3,
+      "versionNonce": 159545547,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-solid",
@@ -591,7 +607,8 @@
       "containerId": null,
       "originalText": "Solid ↓ = read/write/watch on disk",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aG"
     },
     {
       "angle": 0,
@@ -604,11 +621,11 @@
       ],
       "frameId": null,
       "seed": 59549,
-      "version": 2,
-      "versionNonce": 902687436,
+      "version": 3,
+      "versionNonce": 546737509,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "l-dash",
@@ -629,7 +646,8 @@
       "containerId": null,
       "originalText": "Dashed ↓ = spawn app or build step",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aH"
     },
     {
       "angle": 0,
@@ -640,11 +658,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 46412,
-      "version": 2,
-      "versionNonce": 861200010,
+      "version": 3,
+      "versionNonce": 1139746667,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "h1",
@@ -665,7 +683,8 @@
       "containerId": null,
       "originalText": "Design Drive Development — Software Architecture",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aI"
     },
     {
       "angle": 0,
@@ -676,11 +695,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 12488,
-      "version": 2,
-      "versionNonce": 164455045,
+      "version": 3,
+      "versionNonce": 327784645,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "h2",
@@ -701,7 +720,8 @@
       "containerId": null,
       "originalText": "All hosts sync through *.excalidraw on disk — nothing bypasses persistence",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aJ"
     },
     {
       "angle": 0,
@@ -714,17 +734,17 @@
       ],
       "frameId": null,
       "seed": 28621,
-      "version": 2,
-      "versionNonce": 33465793,
+      "version": 17,
+      "versionNonce": 973732575,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762857,
       "link": null,
       "locked": false,
       "id": "lane-1-bg",
       "type": "rectangle",
-      "x": 300,
-      "y": 72,
+      "x": 412.859375,
+      "y": 100.734375,
       "width": 920,
       "height": 68,
       "strokeColor": "#dee2e6",
@@ -732,7 +752,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aK"
     },
     {
       "angle": 0,
@@ -745,17 +766,17 @@
       ],
       "frameId": null,
       "seed": 87700,
-      "version": 2,
-      "versionNonce": 391868537,
+      "version": 17,
+      "versionNonce": 367347455,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-1-lbl",
       "type": "text",
-      "x": 310,
-      "y": 98,
+      "x": 422.859375,
+      "y": 126.734375,
       "width": 132,
       "height": 16,
       "strokeColor": "#495057",
@@ -770,7 +791,8 @@
       "containerId": null,
       "originalText": "1 · Authoring",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aL"
     },
     {
       "angle": 0,
@@ -783,17 +805,17 @@
       ],
       "frameId": null,
       "seed": 71228,
-      "version": 2,
-      "versionNonce": 353490535,
+      "version": 17,
+      "versionNonce": 1287786271,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-2-bg",
       "type": "rectangle",
-      "x": 300,
-      "y": 152,
+      "x": 412.859375,
+      "y": 180.734375,
       "width": 920,
       "height": 108,
       "strokeColor": "#dee2e6",
@@ -801,7 +823,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aM"
     },
     {
       "angle": 0,
@@ -814,17 +837,17 @@
       ],
       "frameId": null,
       "seed": 38481,
-      "version": 2,
-      "versionNonce": 212727076,
+      "version": 17,
+      "versionNonce": 2031145791,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-2-lbl",
       "type": "text",
-      "x": 310,
-      "y": 198,
+      "x": 422.859375,
+      "y": 226.734375,
       "width": 132,
       "height": 16,
       "strokeColor": "#495057",
@@ -839,7 +862,8 @@
       "containerId": null,
       "originalText": "2 · Persistence",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aN"
     },
     {
       "angle": 0,
@@ -852,17 +876,17 @@
       ],
       "frameId": null,
       "seed": 71700,
-      "version": 2,
-      "versionNonce": 789861952,
+      "version": 17,
+      "versionNonce": 322048863,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-3-bg",
       "type": "rectangle",
-      "x": 300,
-      "y": 272,
+      "x": 412.859375,
+      "y": 300.734375,
       "width": 920,
       "height": 88,
       "strokeColor": "#dee2e6",
@@ -870,7 +894,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aO"
     },
     {
       "angle": 0,
@@ -883,17 +908,17 @@
       ],
       "frameId": null,
       "seed": 64721,
-      "version": 2,
-      "versionNonce": 164154442,
+      "version": 17,
+      "versionNonce": 863391615,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-3-lbl",
       "type": "text",
-      "x": 310,
-      "y": 308,
+      "x": 422.859375,
+      "y": 336.734375,
       "width": 132,
       "height": 16,
       "strokeColor": "#495057",
@@ -908,7 +933,8 @@
       "containerId": null,
       "originalText": "3 · Host shells",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aP"
     },
     {
       "angle": 0,
@@ -921,17 +947,17 @@
       ],
       "frameId": null,
       "seed": 90837,
-      "version": 2,
-      "versionNonce": 703472668,
+      "version": 17,
+      "versionNonce": 337512351,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-4-bg",
       "type": "rectangle",
-      "x": 300,
-      "y": 376,
+      "x": 412.859375,
+      "y": 404.734375,
       "width": 920,
       "height": 64,
       "strokeColor": "#dee2e6",
@@ -939,7 +965,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aQ"
     },
     {
       "angle": 0,
@@ -952,17 +979,17 @@
       ],
       "frameId": null,
       "seed": 9208,
-      "version": 2,
-      "versionNonce": 965005555,
+      "version": 17,
+      "versionNonce": 1398389695,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-4-lbl",
       "type": "text",
-      "x": 310,
-      "y": 400,
+      "x": 422.859375,
+      "y": 428.734375,
       "width": 132,
       "height": 16,
       "strokeColor": "#495057",
@@ -977,7 +1004,8 @@
       "containerId": null,
       "originalText": "4 · Shared runtime UI",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aR"
     },
     {
       "angle": 0,
@@ -990,17 +1018,17 @@
       ],
       "frameId": null,
       "seed": 28428,
-      "version": 2,
-      "versionNonce": 606345550,
+      "version": 17,
+      "versionNonce": 1967778783,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-5-bg",
       "type": "rectangle",
-      "x": 300,
-      "y": 456,
+      "x": 412.859375,
+      "y": 484.734375,
       "width": 920,
       "height": 56,
       "strokeColor": "#dee2e6",
@@ -1008,7 +1036,8 @@
       "strokeWidth": 2,
       "roundness": {
         "type": 3
-      }
+      },
+      "index": "aS"
     },
     {
       "angle": 0,
@@ -1021,17 +1050,17 @@
       ],
       "frameId": null,
       "seed": 45341,
-      "version": 2,
-      "versionNonce": 95197792,
+      "version": 17,
+      "versionNonce": 637474815,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591762858,
       "link": null,
       "locked": false,
       "id": "lane-5-lbl",
       "type": "text",
-      "x": 310,
-      "y": 476,
+      "x": 422.859375,
+      "y": 504.734375,
       "width": 132,
       "height": 16,
       "strokeColor": "#495057",
@@ -1046,7 +1075,8 @@
       "containerId": null,
       "originalText": "5 · Build & launch",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aT"
     },
     {
       "angle": 0,
@@ -1057,8 +1087,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 48407,
-      "version": 2,
-      "versionNonce": 31657388,
+      "version": 3,
+      "versionNonce": 1817402155,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1066,7 +1096,7 @@
           "id": "skill-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "skill",
@@ -1083,7 +1113,8 @@
       },
       "customData": {
         "kind": "agent"
-      }
+      },
+      "index": "aU"
     },
     {
       "angle": 0,
@@ -1094,8 +1125,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 75610,
-      "version": 2,
-      "versionNonce": 703004893,
+      "version": 3,
+      "versionNonce": 964919557,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1103,7 +1134,7 @@
           "id": "scripts-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "scripts",
@@ -1120,7 +1151,8 @@
       },
       "customData": {
         "kind": "agent"
-      }
+      },
+      "index": "aV"
     },
     {
       "angle": 0,
@@ -1131,8 +1163,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 60498,
-      "version": 2,
-      "versionNonce": 43494083,
+      "version": 3,
+      "versionNonce": 859094475,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1140,7 +1172,7 @@
           "id": "term-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "term",
@@ -1157,7 +1189,8 @@
       },
       "customData": {
         "kind": "agent"
-      }
+      },
+      "index": "aW"
     },
     {
       "angle": 0,
@@ -1168,8 +1201,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 9521,
-      "version": 2,
-      "versionNonce": 615448660,
+      "version": 3,
+      "versionNonce": 1440159845,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1177,7 +1210,7 @@
           "id": "excal-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "excal",
@@ -1195,7 +1228,8 @@
       "customData": {
         "kind": "storage",
         "role": "diagram"
-      }
+      },
+      "index": "aX"
     },
     {
       "angle": 0,
@@ -1206,8 +1240,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 1186,
-      "version": 2,
-      "versionNonce": 380352854,
+      "version": 3,
+      "versionNonce": 1762708587,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1215,7 +1249,7 @@
           "id": "ext-host-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "extension",
@@ -1233,7 +1267,8 @@
       "customData": {
         "kind": "host",
         "id": "extension"
-      }
+      },
+      "index": "aY"
     },
     {
       "angle": 0,
@@ -1244,8 +1279,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 83574,
-      "version": 2,
-      "versionNonce": 382699707,
+      "version": 3,
+      "versionNonce": 109102021,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1253,7 +1288,7 @@
           "id": "rust-host-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "rust-host",
@@ -1272,7 +1307,8 @@
         "kind": "host",
         "id": "rust",
         "default": true
-      }
+      },
+      "index": "aZ"
     },
     {
       "angle": 0,
@@ -1283,8 +1319,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 89074,
-      "version": 2,
-      "versionNonce": 642897263,
+      "version": 3,
+      "versionNonce": 833750795,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1292,7 +1328,7 @@
           "id": "elec-host-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "elec-host",
@@ -1310,7 +1346,8 @@
       "customData": {
         "kind": "host",
         "id": "electron"
-      }
+      },
+      "index": "aa"
     },
     {
       "angle": 0,
@@ -1321,8 +1358,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 91057,
-      "version": 2,
-      "versionNonce": 739403716,
+      "version": 3,
+      "versionNonce": 2141061925,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1330,7 +1367,7 @@
           "id": "webview-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "webview",
@@ -1347,7 +1384,8 @@
       },
       "customData": {
         "kind": "runtime"
-      }
+      },
+      "index": "ab"
     },
     {
       "angle": 0,
@@ -1358,8 +1396,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 98870,
-      "version": 2,
-      "versionNonce": 758089244,
+      "version": 33,
+      "versionNonce": 1386914517,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1367,13 +1405,13 @@
           "id": "build-web-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1785591093533,
       "link": null,
       "locked": false,
       "id": "build-web",
       "type": "rectangle",
-      "x": 448,
-      "y": 462,
+      "x": 194.15234375,
+      "y": 527.93359375,
       "width": 233,
       "height": 44,
       "strokeColor": "#e64980",
@@ -1384,7 +1422,8 @@
       },
       "customData": {
         "kind": "build"
-      }
+      },
+      "index": "ac"
     },
     {
       "angle": 0,
@@ -1395,8 +1434,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 92748,
-      "version": 2,
-      "versionNonce": 290824102,
+      "version": 3,
+      "versionNonce": 362567301,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1404,7 +1443,7 @@
           "id": "build-applet-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "build-applet",
@@ -1421,7 +1460,8 @@
       },
       "customData": {
         "kind": "build"
-      }
+      },
+      "index": "ad"
     },
     {
       "angle": 0,
@@ -1432,8 +1472,8 @@
       "groupIds": [],
       "frameId": null,
       "seed": 38312,
-      "version": 2,
-      "versionNonce": 403232968,
+      "version": 19,
+      "versionNonce": 890553797,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1441,13 +1481,13 @@
           "id": "build-rust-t"
         }
       ],
-      "updated": 1784545486512,
+      "updated": 1785584565271,
       "link": null,
       "locked": false,
       "id": "build-rust",
       "type": "rectangle",
-      "x": 986,
-      "y": 462,
+      "x": 982.2083899456522,
+      "y": 624.9712975543478,
       "width": 233,
       "height": 44,
       "strokeColor": "#e64980",
@@ -1458,7 +1498,8 @@
       },
       "customData": {
         "kind": "build"
-      }
+      },
+      "index": "ae"
     },
     {
       "angle": 0,
@@ -1469,11 +1510,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 62909,
-      "version": 2,
-      "versionNonce": 256110611,
+      "version": 3,
+      "versionNonce": 859389413,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "skill-t",
@@ -1494,7 +1535,8 @@
       "containerId": "skill",
       "originalText": "Cursor agent + DDD skill\nread/write *.excalidraw · metadata · menus",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "af"
     },
     {
       "angle": 0,
@@ -1505,11 +1547,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 16614,
-      "version": 2,
-      "versionNonce": 980892247,
+      "version": 3,
+      "versionNonce": 644726507,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "scripts-t",
@@ -1530,7 +1572,8 @@
       "containerId": "scripts",
       "originalText": "Headless scripts\ncapture · evaluate · iterate · generate",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "ag"
     },
     {
       "angle": 0,
@@ -1541,11 +1584,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 33357,
-      "version": 2,
-      "versionNonce": 971067110,
+      "version": 3,
+      "versionNonce": 260192581,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "term-t",
@@ -1566,7 +1609,8 @@
       "containerId": "term",
       "originalText": "Terminal harness\nnpm run view — spawns host\n(still reads same file on disk)",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "ah"
     },
     {
       "angle": 0,
@@ -1577,11 +1621,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 67353,
-      "version": 2,
-      "versionNonce": 489687461,
+      "version": 3,
+      "versionNonce": 1271703947,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "excal-t",
@@ -1602,7 +1646,8 @@
       "containerId": "excal",
       "originalText": "*.excalidraw on disk — single source of truth\nelements · appState · files  ·  *.metadata.md  ·  .designs/ (extension)  ·  project/",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "ai"
     },
     {
       "angle": 0,
@@ -1613,11 +1658,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 16233,
-      "version": 2,
-      "versionNonce": 163039623,
+      "version": 3,
+      "versionNonce": 601147557,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "ext-host-t",
@@ -1638,7 +1683,8 @@
       "containerId": "extension",
       "originalText": "Cursor extension\neditorProvider · document · designLibrary\n.designs/ groups · watch + IPC",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aj"
     },
     {
       "angle": 0,
@@ -1649,11 +1695,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 96050,
-      "version": 2,
-      "versionNonce": 308038421,
+      "version": 3,
+      "versionNonce": 1194672171,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "rust-host-t",
@@ -1674,7 +1720,8 @@
       "containerId": "rust-host",
       "originalText": "Rust applet ★ default\nhost.rs · wry · ddd://\nnotify watcher",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "ak"
     },
     {
       "angle": 0,
@@ -1685,11 +1732,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 60952,
-      "version": 2,
-      "versionNonce": 491344532,
+      "version": 3,
+      "versionNonce": 1641966597,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "elec-host-t",
@@ -1710,7 +1757,8 @@
       "containerId": "elec-host",
       "originalText": "Electron fallback\nhostSession · preload\nIPC + fs.watch",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "al"
     },
     {
       "angle": 0,
@@ -1721,11 +1769,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 78865,
-      "version": 2,
-      "versionNonce": 86858824,
+      "version": 3,
+      "versionNonce": 43123403,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "webview-t",
@@ -1746,7 +1794,8 @@
       "containerId": "webview",
       "originalText": "Shared webview — App.tsx · Excalidraw · sync guards\nbuilt: extension/webview → media/ + viewer/dist/",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "am"
     },
     {
       "angle": 0,
@@ -1757,17 +1806,17 @@
       "groupIds": [],
       "frameId": null,
       "seed": 97210,
-      "version": 2,
-      "versionNonce": 756114504,
+      "version": 33,
+      "versionNonce": 928612405,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591093533,
       "link": null,
       "locked": false,
       "id": "build-web-t",
       "type": "text",
-      "x": 454,
-      "y": 468,
+      "x": 200.15234375,
+      "y": 533.93359375,
       "width": 221,
       "height": 32,
       "strokeColor": "#212529",
@@ -1782,7 +1831,8 @@
       "containerId": "build-web",
       "originalText": "npm run build:webview",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "an"
     },
     {
       "angle": 0,
@@ -1793,11 +1843,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 45811,
-      "version": 2,
-      "versionNonce": 165777876,
+      "version": 3,
+      "versionNonce": 1182626155,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "build-applet-t",
@@ -1818,7 +1868,8 @@
       "containerId": "build-applet",
       "originalText": "npm run build:applet",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "ao"
     },
     {
       "angle": 0,
@@ -1829,17 +1880,17 @@
       "groupIds": [],
       "frameId": null,
       "seed": 70388,
-      "version": 2,
-      "versionNonce": 19229960,
+      "version": 19,
+      "versionNonce": 6407461,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785584565271,
       "link": null,
       "locked": false,
       "id": "build-rust-t",
       "type": "text",
-      "x": 992,
-      "y": 468,
+      "x": 988.2083899456522,
+      "y": 630.9712975543478,
       "width": 221,
       "height": 32,
       "strokeColor": "#212529",
@@ -1854,7 +1905,8 @@
       "containerId": "build-rust",
       "originalText": "cargo build --release",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "ap"
     },
     {
       "angle": 0,
@@ -1865,17 +1917,17 @@
       "groupIds": [],
       "frameId": null,
       "seed": 84978,
-      "version": 2,
-      "versionNonce": 318966334,
+      "version": 31,
+      "versionNonce": 1159893599,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1785591761758,
       "link": null,
       "locked": false,
       "id": "sync-note",
       "type": "text",
-      "x": 340,
-      "y": 520,
+      "x": 457.17578125,
+      "y": 476.859375,
       "width": 840,
       "height": 28,
       "strokeColor": "#868e96",
@@ -1890,7 +1942,8 @@
       "containerId": null,
       "originalText": "Sync: 300 ms autosave · SHA-256 dedupe · stale/empty guards · watchers only",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "aq"
     },
     {
       "angle": 0,
@@ -1901,11 +1954,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 34837,
-      "version": 2,
-      "versionNonce": 229838394,
+      "version": 3,
+      "versionNonce": 29150757,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-skill-excal",
@@ -1944,7 +1997,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "ar",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -1955,11 +2010,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 57990,
-      "version": 2,
-      "versionNonce": 48473910,
+      "version": 3,
+      "versionNonce": 534401707,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-scripts-excal",
@@ -1998,7 +2053,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "as",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2009,11 +2066,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 51578,
-      "version": 2,
-      "versionNonce": 363867262,
+      "version": 3,
+      "versionNonce": 531218821,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-term-excal",
@@ -2052,7 +2109,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "at",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2063,11 +2122,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 46261,
-      "version": 2,
-      "versionNonce": 416134149,
+      "version": 3,
+      "versionNonce": 1508951371,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-excal-extension",
@@ -2106,7 +2165,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "au",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2117,11 +2178,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 14542,
-      "version": 2,
-      "versionNonce": 256767994,
+      "version": 3,
+      "versionNonce": 241256677,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-excal-rust-host",
@@ -2160,7 +2221,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "av",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2171,11 +2234,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 16118,
-      "version": 2,
-      "versionNonce": 810785728,
+      "version": 3,
+      "versionNonce": 2044716011,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-excal-elec-host",
@@ -2214,7 +2277,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "aw",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2225,11 +2290,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 29230,
-      "version": 2,
-      "versionNonce": 510063651,
+      "version": 3,
+      "versionNonce": 2138104901,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-extension-webview",
@@ -2268,7 +2333,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "ax",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2279,11 +2346,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 77167,
-      "version": 2,
-      "versionNonce": 269915104,
+      "version": 3,
+      "versionNonce": 397553291,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-rust-host-webview",
@@ -2322,7 +2389,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "ay",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2333,11 +2402,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 79485,
-      "version": 2,
-      "versionNonce": 982835465,
+      "version": 3,
+      "versionNonce": 381031333,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "a-elec-host-webview",
@@ -2376,7 +2445,9 @@
       "endArrowhead": "arrow",
       "customData": {
         "pattern": "sync"
-      }
+      },
+      "index": "az",
+      "lastCommittedPoint": null
     },
     {
       "angle": 0,
@@ -2387,11 +2458,11 @@
       "groupIds": [],
       "frameId": null,
       "seed": 2820,
-      "version": 2,
-      "versionNonce": 901106011,
+      "version": 3,
+      "versionNonce": 1713513771,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1784545486512,
+      "updated": 1784546110241,
       "link": null,
       "locked": false,
       "id": "build-note",
@@ -2412,17 +2483,15 @@
       "containerId": null,
       "originalText": "Build chain: build:webview → build:applet copies bundle to viewer/dist/ · cargo builds Rust launcher",
       "autoResize": true,
-      "lineHeight": 1.2
+      "lineHeight": 1.2,
+      "index": "b00"
     }
   ],
   "appState": {
     "gridSize": 20,
-    "viewBackgroundColor": "#ffffff",
-    "zoom": {
-      "value": 0.92
-    },
-    "scrollX": 0,
-    "scrollY": 0
+    "gridStep": 5,
+    "gridModeEnabled": false,
+    "viewBackgroundColor": "#ffffff"
   },
   "files": {}
 }

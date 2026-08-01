@@ -1,5 +1,27 @@
 # Running spec
 
+### 2026-08-01 — Disk reload needs arrow geometry, not bindings alone
+- **Decision:** Agents must co-update arrow/line `x`/`y`/`points` whenever endpoints move; `startBinding`/`endBinding` alone do not recompute on external `updateScene` load. Captions belong in `containerId`-bound text, not overlay text.
+- **Rationale:** Live multi-frame disk writes moved Hello but left stale arrow coords — arrow looked detached. Documented in `bindings-and-captions.md`.
+
+### 2026-08-01 — Agent turn lock pauses human input for live AI edits
+- **Decision:** Agents create `<diagram>.ddd-agent-turn.lock` for a whole design turn. While present, hosts show a red **Agent turn** banner, block canvas edits/autosave, reload disk at ~16 ms, and apply agent writes live without conflict preservation.
+- **Rationale:** Human+agent concurrent edits caused revert races; explicit agent turn gives highest live refresh and obvious ownership.
+
+### 2026-08-01 — Invalid intermediate JSON never replaces canvas
+- **Decision:** Seed only zero-byte files on first open. Ignore non-empty invalid/schema-incomplete disk revisions on watch and keep last valid canvas until a valid save arrives.
+- **Rationale:** Text editors can expose partial JSON while typing/saving; normalizing every invalid revision to an empty diagram caused canvas resets and save conflicts.
+
+### 2026-08-01 — Open human session owns concurrent diagram edits
+- **Decision:** Disk is durable interchange, not conflict winner. While a diagram editor is open, its host arbitrates revisions: synced agent writes load live; concurrent agent writes during human-dirty state are preserved as `*.agent-conflict.excalidraw`, then human canvas atomically restores the main file.
+- **Rationale:** Both canvas and agents write full JSON. Explicit `booting → synced → humanDirty/savingHuman/applyingAgent/agentConflict` states, compare-and-swap saves, and generation-aware `loadApplied` prevent own-save reverts and silent data loss.
+- **Remarks:** Same protocol applies to Cursor extension, Electron fallback, and Rust applet. Element counts never decide ownership; valid delete/shrink revisions are allowed.
+- **Remarks:** Hosts use short-lived `.ddd-write.lock` files plus hash rechecks. Cooperative agents wait and re-read; arbitrary processes can bypass advisory locks, so that residual race is tracked in `project/tech_side_input`.
+
+### 2026-08-01 — Own-save watch must not reload webview
+- **Decision:** `pushLatestFromDisk` skips webview push when `diskHash === memoryHash`; ignore file watcher while `isPersisting`; update `lastWebviewAppliedHash` on local webview edits.
+- **Rationale:** After autosave, watch echo re-pushed disk into canvas and reverted in-progress manual edits.
+
 ### 2026-08-01 — Empty *.excalidraw opens to blank canvas (no hang)
 - **Decision:** Treat empty/invalid diagram JSON as default empty Excalidraw doc; seed disk on first `ready`; webview `parsePayload` never throws on blank input.
 - **Rationale:** New zero-byte files made `JSON.parse("")` throw → no `loadApplied` → UI stuck on “Loading diagram…”.

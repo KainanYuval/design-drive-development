@@ -17,3 +17,8 @@ tag: chore
 name: codeowners placeholder
 oneline: Replace @OWNER in .github/CODEOWNERS and issue template URLs when GitHub remote is created.
 kpi: CODEOWNERS matches real maintainer handle before branch protection requires review.
+
+tag: tech-debt
+name: noncooperative writer race
+oneline: Write lock prevents cooperative agent/host races; arbitrary processes can still overwrite between final hash check and rename because portable filesystem CAS does not exist.
+kpi: Stress test 10,000 concurrent noncooperative writes with zero unpreserved revisions, or document filesystem-specific transactional requirement.

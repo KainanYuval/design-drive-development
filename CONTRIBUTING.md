@@ -13,6 +13,7 @@ Thanks for helping improve **Design Drive Development (DDD)**.
 ```bash
 cd extension
 npm install
+npm test
 npm run build
 npm run install:local   # local Cursor install
 ```
@@ -23,7 +24,7 @@ Reload Cursor after installing the VSIX.
 
 1. Branch from `main`
 2. Keep scope focused — extension vs skill vs docs
-3. `npm run build` must pass in `extension/`
+3. `npm test` and `npm run build` must pass in `extension/`
 4. Do not commit secrets, `node_modules/`, `extension/out/`, `extension/media/`, or `*.vsix`
 
 ## Security

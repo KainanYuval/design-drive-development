@@ -1,6 +1,6 @@
 # Design Drive Development (DDD)
 
-Architecture diagrams in your repo that your Cursor agent can edit — file on disk is truth. Excalidraw today; Mermaid planned.
+Architecture diagrams in your repo that humans and agents can edit. Disk is durable interchange; an open editor protects human work. Excalidraw today; Mermaid planned.
 
 ## Repository layout
 
@@ -15,15 +15,23 @@ extension/                       # VS Code / Cursor extension
 
 ### 1. Build and install the extension (once)
 
+**From source (developers):**
+
 ```bash
 cd extension
 npm install
 npm run install:local
 ```
 
+**From shippable bundle:**
+
+```bash
+./shippable/install.sh
+```
+
 Reload Cursor when prompted. This installs **Design Drive Development (DDD)** into your main Cursor window (not only the Extension Development Host).
 
-To rebuild after code changes: `npm run install:local` again.
+To rebuild after code changes: `npm run install:local` again, or refresh the bundle with `npm run ship` from repo root.
 
 ### 2. Open a diagram
 
@@ -32,7 +40,9 @@ To rebuild after code changes: `npm run install:local` again.
 
 `.vscode/settings.json` maps `*.excalidraw` to our editor. Disable `pomdtr.excalidraw-editor` if it still wins.
 
-External edits (agent or disk) reload within ~400ms via webview pull + file watcher.
+External edits (agent or disk) reload via file watcher. Each load carries a generation and is committed only after the canvas acknowledges it.
+
+Partially typed or otherwise invalid JSON is ignored; the canvas keeps its last valid revision and reloads after the file becomes valid again. Only a zero-byte file is seeded as a new blank diagram on first open.
 
 ### Copy selection for chat
 
@@ -48,7 +58,7 @@ Reusable groups are stored in `.designs/groups/*.excalidraw-group.json`.
 2. First save prompts to create `.designs/` (separate repo branch for components).
 3. **Insert Design from Repository** (`Shift+Alt+I`) → pick a saved group.
 
-**Troubleshooting live reload:** After `install:local`, run **Developer: Reload Window**. Confirm tab title is **Design Drive Development (DDD)**. Open **View → Output → Design Drive Development (DDD)** — you should see `pushed external update` lines when the agent edits the file.
+**Troubleshooting live reload:** After `install:local`, run **Developer: Reload Window**. Confirm tab title is **Design Drive Development (DDD)**. Open **View → Output → Design Drive Development (DDD)** — you should see `load generation` and `loadApplied` lines when an agent edit reaches the canvas.
 
 ### 3. Collaborate with the agent
 
@@ -74,10 +84,18 @@ Agent must ask before `--open`. See `terminal-harness.md`.
 
 ## Principles
 
-- Diagram file on disk is source of truth
-- Extension: open, save, watch, render — no AI logic
+- Diagram file on disk is durable shared representation
+- Open editor host owns writes while human canvas has uncommitted changes
+- Synced agent writes load live; concurrent agent versions are preserved as `*.agent-conflict.excalidraw`
+- Extension: open, save, watch, arbitrate revisions, render — no AI logic
 - Cursor skill: read, edit, metadata, interaction menu
-- No server, no custom sync protocol
+- No server; host/webview sync uses generation-aware messages and compare-and-swap saves
+
+## Two-way ownership
+
+Normal path: human edits autosave after 300ms; agent reads that file. Agent edits made while canvas is synced appear live. Hosts use a short-lived `<diagram>.ddd-write.lock`; cooperative agents wait, re-read, then write.
+
+Conflict path: if an agent writes while the human canvas is dirty, human work stays visible and wins the main file. Agent content is saved beside it as `<name>.agent-conflict.excalidraw` with hash metadata. Cursor offers to open or replace with that candidate. Nothing is silently discarded.
 
 ## Manual loop test
 
@@ -85,8 +103,9 @@ Agent must ask before `--open`. See `terminal-harness.md`.
 2. Ask the agent to split a service.
 3. Watch the diagram update when the agent saves the file.
 4. Drag a box manually.
-5. Tell the agent: `2` (you edited it).
-6. Agent re-reads the file and continues.
+5. Confirm the drag remains after autosave/watch echo.
+6. Ask the agent to edit while the canvas is idle; confirm live reload.
+7. Edit continuously while an agent writes; confirm human canvas stays and agent candidate is preserved.
 
 ## Package extension (optional)
 

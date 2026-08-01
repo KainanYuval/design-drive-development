@@ -6,7 +6,8 @@
   "scripts": {
     "capture-diagram": "node scripts/capture-diagram.mjs",
     "design:evaluate": "node scripts/evaluate-diagram-visual.mjs",
-    "design:iterate": "node scripts/design-visual-iterate.mjs --max-iterations 3 --min-iterations 1"
+    "design:iterate": "node scripts/design-visual-iterate.mjs --max-iterations 3 --min-iterations 1",
+    "ship": "node scripts/assemble-shippable.mjs"
   },
   "keywords": [],
   "author": "",

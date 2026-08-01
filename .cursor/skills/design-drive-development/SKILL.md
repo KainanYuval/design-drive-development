@@ -3,8 +3,9 @@ name: design-drive-development
 description: >-
   Design Drive Development (DDD) — collaborate on in-repo architecture diagrams
   (`.excalidraw`; Mermaid planned) with live extension reload. Reads and writes diagram
-  files plus companion `*.metadata.md`, applies visual and interaction preferences, and
-  ends design turns with the required accept/reject menu. Use when the user opens or
+  files plus companion `*.metadata.md`, applies visual and interaction preferences,
+  enforces bindings-and-captions rules (arrows/lines stay attached; labels inside shapes),
+  and ends design turns with the required accept/reject menu. Use when the user opens or
   edits diagram files, asks to review or change architecture, split services, or update
   system design visually. When adding new diagram objects (service, class, database,
   queue, etc.), offers numbered options for the user to choose before writing the file.
@@ -12,7 +13,7 @@ description: >-
 
 # Design Drive Development (DDD)
 
-The diagram file on disk is the single source of truth. Edit it on disk. The DDD extension renders it and reloads on save.
+The diagram file on disk is durable interchange. Edit it on disk. When a human has uncommitted canvas work, the open DDD host owns the main file and preserves a concurrent agent write as `<basename>.agent-conflict.excalidraw`.
 
 ## Workflow
 
@@ -21,12 +22,44 @@ The diagram file on disk is the single source of truth. Edit it on disk. The DDD
 3. Resolve metadata via [metadata workflow](#metadata-workflow).
 4. Run [incoherence checks](#incoherence-checks) against metadata, the diagram, and saved designs.
 5. For every **new object** the change would add, run [new object options](#new-object-options) — wait for the user's choice before patching.
-6. Patch the diagram JSON — embed [semantic data on elements](#semantic-data-on-elements) for anything relevant to that shape or arrow (prefer minimal edits over full rewrites unless metadata says otherwise).
-7. Write the `.excalidraw` file back to disk.
-8. Update metadata when you discover stable persistent information.
-9. End every design proposal with the [required interaction menu](#required-end-of-turn-interaction).
+6. Apply [bindings and captions rules](bindings-and-captions.md) — connected arrows/lines move with endpoints; labels live inside shapes, not as overlays.
+7. Patch the diagram JSON — embed [semantic data on elements](#semantic-data-on-elements) for anything relevant to that shape or arrow (prefer minimal edits over full rewrites unless metadata says otherwise).
+8. Before the first disk write in a design turn, create `<diagram>.ddd-agent-turn.lock` (see [Agent turn](#agent-turn)). Hold it for the whole turn; delete it when done.
+9. Before writing, wait while `<diagram>.ddd-write.lock` exists (host save in progress). Then re-read, apply the patch to that revision, and write atomically.
+10. Re-read the main file after writing. If it reverted and `<basename>.agent-conflict.excalidraw` exists, stop: tell the user human canvas won and reference the preserved candidate. Never retry the same write in a loop.
+11. Update metadata when you discover stable persistent information.
+12. End every design proposal with the [required interaction menu](#required-end-of-turn-interaction).
 
 The extension watches the file and reloads automatically. Do not ask the user to refresh.
+
+### Concurrent ownership
+
+- **Agent turn:** While `<diagram>.ddd-agent-turn.lock` exists, the open host shows a red **Agent turn** banner, pauses canvas input, reloads disk at ~16 ms, and applies every valid agent write live. Human canvas edits are ignored until the lock is removed.
+- Synced canvas (no agent turn): agent disk write becomes a generation-tracked live load.
+- Human-dirty canvas (no agent turn): human wins main file; agent candidate is preserved beside it with `.agent-conflict.json` hash metadata.
+- Treat a conflict artifact as an unresolved proposal. Report it; do not overwrite human work or delete the artifact.
+
+### Agent turn
+
+Create before the first diagram write; delete after the last write in the same design turn:
+
+```json
+{
+  "kind": "agent-turn",
+  "label": "Agent turn",
+  "pid": 0,
+  "startedAt": "2026-08-01T13:00:00.000Z"
+}
+```
+
+Path: `<diagram>.excalidraw` → `<diagram>.excalidraw.ddd-agent-turn.lock`
+
+Rules:
+
+- One lock per agent design turn (may span many disk writes).
+- Never create while `.ddd-write.lock` exists — wait, re-read, then continue.
+- Do not delete early mid-turn; the human sees live updates only while the lock is held.
+- Optional `label` overrides banner text (default: `Agent turn`).
 
 ## Terminal harness (opt-in applet)
 
@@ -287,10 +320,11 @@ Example arrow:
 }
 ```
 
-Also add a bound text label on arrows when the protocol or flow name should be visible.
+Also add a bound text label on arrows when the protocol or flow name should be visible — bound to the arrow, not floating overlay text. See [bindings and captions](bindings-and-captions.md).
 
 ### Rules
 
+- **Bindings:** follow [bindings and captions](bindings-and-captions.md) on every patch — especially when moving shapes or writing live multi-frame updates during agent turn.
 - **New elements:** only after the user picks from [new object options](#new-object-options) (or gave full spec upfront). Then assign semantic `id`, visible label, and `customData`.
 - **Edits:** when a service splits, renames, or changes tech, update `id` (if safe), label text, and `customData` on that element **and** connected arrows.
 - **Do not** stash per-node facts only in metadata if they belong on that element.

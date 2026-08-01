@@ -7,6 +7,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cloneDesignElements, designInsertOffset } from "./designElements";
+import { applyOrbitFrame, collectOrbitJobs } from "./orbitAnimation";
 import { sendDocumentChange, vscode } from "./vscode";
 
 declare global {
@@ -28,6 +29,17 @@ type SelectionInfo = {
   label?: string;
 };
 
+type IncomingLoad = {
+  content: string;
+  external: boolean;
+  generation: number;
+  hash: string;
+  agentTurn?: boolean;
+};
+
+const PERSIST_READY_MS = 100;
+const AGENT_TURN_PERSIST_READY_MS = 16;
+
 function parsePayload(raw: string): ExcalidrawPayload {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -36,10 +48,20 @@ function parsePayload(raw: string): ExcalidrawPayload {
 
   try {
     const parsed = JSON.parse(trimmed) as {
+      type?: unknown;
       elements?: ExcalidrawElement[];
       appState?: Partial<AppState>;
       files?: BinaryFiles;
-    };
+    } | null;
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed) ||
+      parsed.type !== "excalidraw" ||
+      !Array.isArray(parsed.elements)
+    ) {
+      return { elements: [], appState: {}, files: {} };
+    }
 
     return {
       elements: parsed.elements ?? [],
@@ -137,10 +159,6 @@ function sceneFingerprint(
   return JSON.stringify({ elements, files });
 }
 
-function liveElementCount(elements: readonly ExcalidrawElement[]): number {
-  return elements.filter((element) => !element.isDeleted).length;
-}
-
 export function App(): JSX.Element {
   const initial = window.__DDD_INITIAL_DIAGRAM__;
   const [payload, setPayload] = useState<ExcalidrawPayload | null>(() => {
@@ -149,6 +167,9 @@ export function App(): JSX.Element {
     }
     return parsePayload(initial.content);
   });
+  const [agentTurnActive, setAgentTurnActive] = useState(false);
+  const [agentTurnLabel, setAgentTurnLabel] = useState("Agent turn");
+  const agentTurnActiveRef = useRef(false);
   const suppressChangeUntil = useRef(0);
   const latestAppState = useRef<Partial<AppState>>({});
   const latestElements = useRef<ExcalidrawElement[]>([]);
@@ -157,10 +178,13 @@ export function App(): JSX.Element {
   const lastPersistedScene = useRef("");
   const diagramReadySent = useRef(false);
   const isPointerDown = useRef(false);
-  const pendingExternalLoad = useRef<string | null>(null);
+  const pendingExternalLoad = useRef<IncomingLoad | null>(null);
+  const pendingLoadAck = useRef<{ generation: number; hash: string } | null>(null);
+  const currentGeneration = useRef(0);
   const readyToPersist = useRef(false);
-  const lastPersistedLiveCount = useRef(0);
   const persistReadyTimer = useRef<number | null>(null);
+  const orbitingRef = useRef(false);
+  const [sceneApiVersion, setSceneApiVersion] = useState(0);
 
   const excalidrawInitialData = useMemo(() => {
     if (!payload) {
@@ -176,21 +200,75 @@ export function App(): JSX.Element {
     };
   }, [payload]);
 
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api || !payload) {
+      return;
+    }
+
+    const jobs = collectOrbitJobs(api.getSceneElements());
+    if (jobs.length === 0) {
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId = 0;
+
+    const tick = (now: number) => {
+      const currentApi = apiRef.current;
+      if (!currentApi) {
+        return;
+      }
+
+      const elapsedSeconds = (now - startTime) / 1000;
+      const elements = currentApi.getSceneElements();
+      const nextElements = applyOrbitFrame(elements, jobs, elapsedSeconds);
+      if (nextElements) {
+        orbitingRef.current = true;
+        currentApi.updateScene({
+          elements: nextElements,
+          captureUpdate: CaptureUpdateAction.NEVER,
+        });
+        latestElements.current = nextElements;
+        orbitingRef.current = false;
+      }
+
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [payload, sceneApiVersion]);
+
   const schedulePersistReady = useCallback((api: ExcalidrawImperativeAPI) => {
     readyToPersist.current = false;
     if (persistReadyTimer.current !== null) {
       window.clearTimeout(persistReadyTimer.current);
     }
+    const delay = agentTurnActiveRef.current
+      ? AGENT_TURN_PERSIST_READY_MS
+      : PERSIST_READY_MS;
     persistReadyTimer.current = window.setTimeout(() => {
       const elements = api.getSceneElements();
       const files = api.getFiles();
       lastPersistedScene.current = sceneFingerprint(elements, files);
-      lastPersistedLiveCount.current = liveElementCount(elements);
       latestElements.current = [...elements];
       latestFiles.current = { ...files };
       readyToPersist.current = true;
       persistReadyTimer.current = null;
-    }, 100);
+      const ack = pendingLoadAck.current;
+      if (ack && ack.generation >= currentGeneration.current) {
+        pendingLoadAck.current = null;
+        currentGeneration.current = ack.generation;
+        vscode.postMessage({
+          type: "loadApplied",
+          generation: ack.generation,
+          appliedHash: ack.hash,
+        });
+      }
+    }, delay);
   }, []);
 
   useEffect(() => {
@@ -201,29 +279,29 @@ export function App(): JSX.Element {
     vscode.postMessage({ type: "timing", phase: "diagram-render" });
   }, [payload]);
 
-  const applyExternalPayload = useCallback((raw: string, external = true): boolean => {
-    const parsed = parsePayload(raw);
+  const applyExternalPayload = useCallback((load: IncomingLoad): boolean => {
+    if (load.generation < currentGeneration.current) {
+      return false;
+    }
+    const parsed = parsePayload(load.content);
     const nextFingerprint = sceneFingerprint(parsed.elements, parsed.files);
-    if (nextFingerprint === lastPersistedScene.current) {
-      return true;
-    }
 
-    const currentElements = apiRef.current?.getSceneElements() ?? latestElements.current;
-    if (external) {
-      if (isPointerDown.current) {
-        pendingExternalLoad.current = raw;
-        return false;
-      }
-
-      const incomingLive = liveElementCount(parsed.elements);
-      const currentLive = liveElementCount(currentElements);
-      if (incomingLive === 0 && currentLive > 0) {
+    if (load.external) {
+      if (isPointerDown.current && !agentTurnActiveRef.current) {
+        pendingExternalLoad.current = load;
         return false;
       }
     }
 
-    if (external) {
-      suppressChangeUntil.current = Date.now() + 400;
+    if (load.agentTurn !== undefined) {
+      agentTurnActiveRef.current = load.agentTurn;
+      setAgentTurnActive(load.agentTurn);
+    }
+
+    if (load.external) {
+      suppressChangeUntil.current = agentTurnActiveRef.current
+        ? Date.now() + 80
+        : Date.now() + 400;
     } else {
       suppressChangeUntil.current = Date.now() + 500;
     }
@@ -231,7 +309,10 @@ export function App(): JSX.Element {
     latestElements.current = parsed.elements;
     latestFiles.current = parsed.files;
     lastPersistedScene.current = nextFingerprint;
-    lastPersistedLiveCount.current = liveElementCount(parsed.elements);
+    pendingLoadAck.current = {
+      generation: load.generation,
+      hash: load.hash,
+    };
 
     const api = apiRef.current;
     if (api) {
@@ -254,20 +335,14 @@ export function App(): JSX.Element {
     return true;
   }, [schedulePersistReady]);
 
-  const ackExternalLoad = useCallback((raw: string) => {
-    vscode.postMessage({ type: "loadApplied", content: raw });
-  }, []);
-
   const flushPendingExternalLoad = useCallback(() => {
-    const raw = pendingExternalLoad.current;
-    if (!raw) {
+    const load = pendingExternalLoad.current;
+    if (!load) {
       return;
     }
     pendingExternalLoad.current = null;
-    if (applyExternalPayload(raw, true)) {
-      ackExternalLoad(raw);
-    }
-  }, [ackExternalLoad, applyExternalPayload]);
+    applyExternalPayload(load);
+  }, [applyExternalPayload]);
 
   const insertDesign = useCallback(
     (
@@ -299,7 +374,12 @@ export function App(): JSX.Element {
       latestElements.current = nextElements;
       latestFiles.current = nextFiles;
       lastPersistedScene.current = sceneFingerprint(nextElements, nextFiles);
-      sendDocumentChange(nextElements, latestAppState.current, nextFiles);
+      sendDocumentChange(
+        nextElements,
+        latestAppState.current,
+        nextFiles,
+        currentGeneration.current
+      );
     },
     []
   );
@@ -310,25 +390,76 @@ export function App(): JSX.Element {
       latestElements.current = parsed.elements;
       latestFiles.current = parsed.files;
       lastPersistedScene.current = sceneFingerprint(parsed.elements, parsed.files);
-      lastPersistedLiveCount.current = liveElementCount(parsed.elements);
     }
 
     const onMessage = (
       event: MessageEvent<{
         type?: string;
         content?: string;
+        external?: boolean;
+        generation?: number;
+        hash?: string;
         requestId?: number;
         designSlug?: string;
         elements?: ExcalidrawElement[];
         files?: BinaryFiles;
         bounds?: { width: number; height: number };
+        active?: boolean;
+        label?: string;
       }>
     ) => {
       const message = event.data;
-      if (message?.type === "load" && typeof message.content === "string") {
-        if (applyExternalPayload(message.content, message.external !== false)) {
-          ackExternalLoad(message.content);
+      if (message?.type === "agentTurn") {
+        const active = message.active === true;
+        agentTurnActiveRef.current = active;
+        setAgentTurnActive(active);
+        if (typeof message.label === "string" && message.label.trim()) {
+          setAgentTurnLabel(message.label.trim());
+        } else if (!active) {
+          setAgentTurnLabel("Agent turn");
         }
+        return;
+      }
+
+      if (
+        message?.type === "cancelLoad" &&
+        typeof message.generation === "number"
+      ) {
+        if (
+          pendingExternalLoad.current?.generation === message.generation
+        ) {
+          pendingExternalLoad.current = null;
+        }
+        if (pendingLoadAck.current?.generation === message.generation) {
+          pendingLoadAck.current = null;
+        }
+        return;
+      }
+
+      if (
+        message?.type === "adoptGeneration" &&
+        typeof message.generation === "number"
+      ) {
+        currentGeneration.current = Math.max(
+          currentGeneration.current,
+          message.generation
+        );
+        return;
+      }
+
+      if (
+        message?.type === "load" &&
+        typeof message.content === "string" &&
+        typeof message.generation === "number" &&
+        typeof message.hash === "string"
+      ) {
+        applyExternalPayload({
+          content: message.content,
+          external: message.external !== false,
+          generation: message.generation,
+          hash: message.hash,
+          agentTurn: message.agentTurn === true,
+        });
         return;
       }
 
@@ -400,7 +531,7 @@ export function App(): JSX.Element {
         window.clearTimeout(persistReadyTimer.current);
       }
     };
-  }, [ackExternalLoad, applyExternalPayload, insertDesign]);
+  }, [applyExternalPayload, insertDesign]);
 
   if (!payload) {
     return (
@@ -422,13 +553,67 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div style={{ height: "100%", overflow: "hidden", width: "100%" }}>
+    <div style={{ height: "100%", overflow: "hidden", position: "relative", width: "100%" }}>
+      {agentTurnActive ? (
+        <div
+          aria-live="assertive"
+          role="status"
+          style={{
+            alignItems: "center",
+            background: "rgba(255, 245, 245, 0.96)",
+            borderBottom: "1px solid #ffc9c9",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            color: "#c92a2a",
+            display: "flex",
+            fontFamily: "system-ui, sans-serif",
+            fontSize: 13,
+            fontWeight: 600,
+            gap: 10,
+            left: 0,
+            letterSpacing: "0.01em",
+            padding: "10px 14px",
+            position: "absolute",
+            right: 0,
+            top: 0,
+            zIndex: 20,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              animation: "ddd-agent-pulse 1s ease-in-out infinite",
+              background: "#fa5252",
+              borderRadius: "999px",
+              boxShadow: "0 0 0 0 rgba(250, 82, 82, 0.55)",
+              display: "inline-block",
+              flexShrink: 0,
+              height: 12,
+              width: 12,
+            }}
+          />
+          <span>{agentTurnLabel} — AI is editing. Canvas input paused.</span>
+        </div>
+      ) : null}
+      <style>{`
+        @keyframes ddd-agent-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(250, 82, 82, 0.55); }
+          50% { box-shadow: 0 0 0 8px rgba(250, 82, 82, 0); }
+        }
+      `}</style>
+      <div
+        style={{
+          height: "100%",
+          paddingTop: agentTurnActive ? 42 : 0,
+          width: "100%",
+        }}
+      >
       <Excalidraw
-          viewModeEnabled={false}
+          viewModeEnabled={agentTurnActive}
           excalidrawAPI={(api) => {
             apiRef.current = api;
             suppressChangeUntil.current = Date.now() + 500;
             schedulePersistReady(api);
+            setSceneApiVersion((version) => version + 1);
           }}
           initialData={excalidrawInitialData}
           onPointerDown={() => {
@@ -444,15 +629,16 @@ export function App(): JSX.Element {
             latestAppState.current = appState;
             latestElements.current = elements;
             latestFiles.current = files;
+            if (agentTurnActiveRef.current) {
+              return;
+            }
+            if (orbitingRef.current) {
+              return;
+            }
             if (!readyToPersist.current) {
               return;
             }
             if (Date.now() < suppressChangeUntil.current) {
-              return;
-            }
-
-            const liveCount = liveElementCount(elements);
-            if (liveCount === 0 && lastPersistedLiveCount.current > 0) {
               return;
             }
 
@@ -461,9 +647,13 @@ export function App(): JSX.Element {
               return;
             }
             lastPersistedScene.current = fingerprint;
-            lastPersistedLiveCount.current = liveCount;
 
-            sendDocumentChange(elements, appState, files);
+            sendDocumentChange(
+              elements,
+              appState,
+              files,
+              currentGeneration.current
+            );
           }}
           UIOptions={{
             canvasActions: {
@@ -475,6 +665,7 @@ export function App(): JSX.Element {
             },
           }}
         />
+      </div>
     </div>
   );
 }

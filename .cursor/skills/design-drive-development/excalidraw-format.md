@@ -96,7 +96,7 @@ Set `containerId` to the parent shape id. Add a `boundElements` entry on the par
 
 ## Arrow between shapes
 
-Use `startBinding` and `endBinding`:
+Use `startBinding` and `endBinding`. **Also set `x`, `y`, `width`, `height`, and `points` to match current endpoint positions** — bindings alone do not redraw correctly on external disk reload. See [bindings and captions](bindings-and-captions.md).
 
 ```json
 {
@@ -108,6 +108,8 @@ Use `startBinding` and `endBinding`:
 }
 ```
 
+Register the arrow on both shapes: `"boundElements": [{ "type": "arrow", "id": "<arrow-id>" }]`.
+
 ## Font family numbers
 
 Excalidraw uses numeric font ids. Virgil is commonly `3`.
@@ -116,8 +118,9 @@ Excalidraw uses numeric font ids. Virgil is commonly `3`.
 
 1. Map existing elements by semantic `id`, label text, and `customData` — not only coordinates.
 2. Change only affected elements and connected arrows; keep their semantics accurate.
-3. Shift coordinates to reduce overlapping arrows when metadata says so.
-4. Write valid JSON; pretty-print with 2-space indent.
+3. When any endpoint moves, update all bound arrows/lines in the same write ([bindings and captions](bindings-and-captions.md)).
+4. Shift coordinates to reduce overlapping arrows when metadata says so.
+5. Write valid JSON; pretty-print with 2-space indent.
 
 ## Legend panel
 

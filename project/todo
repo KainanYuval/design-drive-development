@@ -26,6 +26,7 @@ Product, GTM, and go-to-market. Not engineering backlog (see `tech_side_input`).
 ## Brand
 
 - [ ] Lock tagline on site/README — spell out **Design Drive Development** before **DDD** (Domain-Driven Design collision)
+- [ ] **Rebrand → Visual Agent Interface** — rename GitHub repo (`design-drive-development` → `visual-agent-interface`), extension id/skill, README; register domains (`visual-agent-interface.com`, `.dev`, `.io`); tagline: *design-driven development, visually*
 
 ## Public GitHub repo
 

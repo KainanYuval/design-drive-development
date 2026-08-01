@@ -18,7 +18,17 @@ import {
 } from "./designLibrary";
 import { ensureDesignsFolderConsent } from "./designsConsent";
 import { DiagramLintReporter } from "./diagramLintReport";
-import { isValidDiagramJson, normalizeDiagramText } from "./diagramDefaults";
+import {
+  classifyDiagramText,
+  normalizeDiagramText,
+} from "./diagramDefaults";
+import {
+  AGENT_TURN_WATCH_DEBOUNCE_MS,
+  agentTurnLockPath,
+  readAgentTurnLockSync,
+  WATCH_DEBOUNCE_MS,
+} from "./agentTurn";
+import { SyncCoordinator, SyncEffect } from "./syncCoordinator";
 
 const OUTPUT_CHANNEL = "Design Drive Development (DDD)";
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL);
@@ -26,23 +36,6 @@ const AUTO_SAVE_DELAY_MS = 300;
 const LINT_DELAY_MS = 600;
 
 let lintReporter: DiagramLintReporter;
-
-function liveElementCountFromJson(text: string): number {
-  try {
-    const parsed = JSON.parse(text) as { elements?: Array<{ isDeleted?: boolean }> };
-    return (parsed.elements ?? []).filter((element) => !element.isDeleted).length;
-  } catch {
-    return 0;
-  }
-}
-
-function readDiskLiveCount(readDiskBytes: () => Uint8Array | undefined): number {
-  const bytes = readDiskBytes();
-  if (!bytes) {
-    return 0;
-  }
-  return liveElementCountFromJson(new TextDecoder().decode(bytes));
-}
 
 const WEBVIEW_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -261,10 +254,14 @@ class ExcalidrawEditor implements vscode.Disposable {
   private lintTimer: NodeJS.Timeout | undefined;
   private webviewReady = false;
   private acceptWebviewEdits = false;
-  private hasUnsavedWebviewEdits = false;
-  private lastPushedHash: string;
-  private lastWebviewSaveHash: string;
-  private lastWebviewAppliedHash: string;
+  private agentTurnActive = false;
+  private diskWatchDelayMs = WATCH_DEBOUNCE_MS;
+  private diskWatchSchedulePush: (() => void) | undefined;
+  private readonly sync: SyncCoordinator;
+  private readonly contentByHash = new Map<string, string>();
+  private readonly pendingLoadContent = new Map<number, string>();
+  private conflictNotificationOpen = false;
+  private invalidDiskWarningHash = "";
   private selectionRequestId = 0;
   private pendingSelectionRequests = new Map<
     number,
@@ -288,9 +285,8 @@ class ExcalidrawEditor implements vscode.Disposable {
     private readonly document: ExcalidrawDocument,
     private readonly panel: vscode.WebviewPanel
   ) {
-    this.lastPushedHash = this.document.getHash();
-    this.lastWebviewSaveHash = this.lastPushedHash;
-    this.lastWebviewAppliedHash = this.lastPushedHash;
+    this.sync = new SyncCoordinator(this.document.getHash());
+    this.contentByHash.set(this.document.getHash(), this.document.getText());
     outputChannel.appendLine(`Opened ${this.document.uri.fsPath}`);
 
     this.panel.webview.options = {
@@ -307,7 +303,7 @@ class ExcalidrawEditor implements vscode.Disposable {
 
     this.disposables.push(
       this.panel.onDidChangeViewState((event) => {
-        if (!event.webviewPanel.visible && this.hasUnsavedWebviewEdits) {
+        if (!event.webviewPanel.visible && this.isHumanDirty()) {
           void this.persistToDisk();
         }
       }),
@@ -323,13 +319,22 @@ class ExcalidrawEditor implements vscode.Disposable {
           return;
         }
 
-        if (message?.type === "loadApplied" && typeof message.content === "string") {
-          this.applyWebviewLoad(message.content);
+        if (
+          message?.type === "loadApplied" &&
+          typeof message.generation === "number" &&
+          typeof message.appliedHash === "string"
+        ) {
+          this.applyWebviewLoad(message.generation, message.appliedHash);
           return;
         }
 
         if (message?.type === "change" && typeof message.content === "string") {
-          await this.handleWebviewChange(message.content);
+          await this.handleWebviewChange(
+            message.content,
+            typeof message.basedOnGeneration === "number"
+              ? message.basedOnGeneration
+              : -1
+          );
           return;
         }
 
@@ -608,7 +613,17 @@ class ExcalidrawEditor implements vscode.Disposable {
     }
 
     const rawText = new TextDecoder().decode(bytes);
-    if (isValidDiagramJson(rawText)) {
+    const classification = classifyDiagramText(rawText);
+    if (classification === "valid") {
+      return;
+    }
+    if (classification === "invalid") {
+      outputChannel.appendLine(
+        "[ready] diagram JSON invalid — keeping disk unchanged"
+      );
+      void vscode.window.showErrorMessage(
+        `${path.basename(this.document.uri.fsPath)} contains invalid Excalidraw JSON. Fix the JSON and save again.`
+      );
       return;
     }
 
@@ -616,7 +631,6 @@ class ExcalidrawEditor implements vscode.Disposable {
     this.document.updateFromText(normalized, false);
     try {
       await this.document.save();
-      this.markSaved();
       outputChannel.appendLine("[ready] seeded empty diagram on disk");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -624,7 +638,7 @@ class ExcalidrawEditor implements vscode.Disposable {
     }
   }
 
-  pushLatestFromDisk(reason: string, force = false): void {
+  async pushLatestFromDisk(reason: string, force = false): Promise<void> {
     if (!this.webviewReady) {
       return;
     }
@@ -635,53 +649,116 @@ class ExcalidrawEditor implements vscode.Disposable {
       return;
     }
 
-    const diskText = normalizeDiagramText(new TextDecoder().decode(bytes));
+    const diskText = new TextDecoder().decode(bytes);
+    if (classifyDiagramText(diskText) !== "valid") {
+      const invalidHash = hashContent(bytes);
+      if (invalidHash !== this.invalidDiskWarningHash) {
+        this.invalidDiskWarningHash = invalidHash;
+        outputChannel.appendLine(
+          `[${reason}] ignored invalid diagram JSON; waiting for a valid save`
+        );
+        void vscode.window.setStatusBarMessage(
+          "Diagram JSON invalid — canvas kept at last valid revision",
+          3000
+        );
+      }
+      return;
+    }
+    this.invalidDiskWarningHash = "";
     const diskHash = hashContent(new TextEncoder().encode(diskText));
-    const memoryHash = this.document.getHash();
+    this.contentByHash.set(diskHash, diskText);
+    const effects =
+      reason === "ready"
+        ? this.sync.bootstrap(diskHash)
+        : force
+          ? this.sync.acceptExternal(diskHash)
+          : this.sync.diskObserved(diskHash);
+    await this.executeSyncEffects(effects, reason);
+  }
 
-    if (!force && this.hasUnsavedWebviewEdits && diskHash === this.lastWebviewSaveHash) {
-      // Local edits not yet flushed; disk still matches last save — ignore watch echo.
+  private applyWebviewLoad(generation: number, appliedHash: string): void {
+    if (!this.sync.loadApplied(generation, appliedHash)) {
+      outputChannel.appendLine(
+        `[loadApplied] ignored stale generation ${generation}`
+      );
+      return;
+    }
+    const content =
+      this.pendingLoadContent.get(generation) ??
+      this.contentByHash.get(appliedHash);
+    if (content) {
+      this.document.updateFromText(content, false);
+    }
+    for (const pendingGeneration of this.pendingLoadContent.keys()) {
+      if (pendingGeneration <= generation) {
+        this.pendingLoadContent.delete(pendingGeneration);
+      }
+    }
+    outputChannel.appendLine(
+      `[loadApplied] generation ${generation} (${appliedHash.slice(0, 8)})`
+    );
+    this.acceptWebviewEdits = !this.agentTurnActive;
+    this.scheduleLint();
+  }
+
+  private setupDiskWatchDebounce(delayMs: number): void {
+    this.diskWatchDelayMs = delayMs;
+    this.diskWatchSchedulePush = debounce(() => {
+      void this.pushLatestFromDisk("watch");
+    }, delayMs);
+  }
+
+  private async refreshAgentTurnState(reason: string): Promise<void> {
+    if (this.document.uri.scheme !== "file" || !this.document.uri.fsPath) {
       return;
     }
 
-    if (!force && this.hasUnsavedWebviewEdits && diskHash !== memoryHash && diskHash !== this.lastWebviewSaveHash) {
-      outputChannel.appendLine(
-        `[${reason}] external disk change (${diskHash.slice(0, 8)}) — reloading over webview`
-      );
-      this.hasUnsavedWebviewEdits = false;
-      this.cancelPendingSave();
-      void vscode.window.setStatusBarMessage("Diagram updated on disk — reloaded", 3000);
+    const lock = readAgentTurnLockSync(this.document.uri.fsPath);
+
+    if (lock && !this.agentTurnActive) {
+      this.enterAgentTurn(lock.label ?? "Agent turn", reason);
+      return;
     }
 
-    if (!force) {
-      if (diskHash === memoryHash && diskHash === this.lastWebviewAppliedHash) {
-        this.lastPushedHash = diskHash;
-        return;
-      }
-      if (diskHash === this.lastPushedHash && diskHash === this.lastWebviewAppliedHash) {
-        return;
-      }
+    if (!lock && this.agentTurnActive) {
+      await this.exitAgentTurn(reason);
+      return;
     }
 
-    void this.panel.webview.postMessage({
-      type: "load",
-      content: diskText,
-      external: reason !== "ready",
-    });
-
-    outputChannel.appendLine(`[${reason}] pushed update (${diskHash.slice(0, 8)})`);
+    if (lock && this.agentTurnActive) {
+      void this.panel.webview.postMessage({
+        type: "agentTurn",
+        active: true,
+        label: lock.label ?? "Agent turn",
+      });
+    }
   }
 
-  private applyWebviewLoad(content: string): void {
-    const changed = this.document.updateFromText(content, false);
-    const hash = this.document.getHash();
-    this.lastPushedHash = hash;
-    this.lastWebviewAppliedHash = hash;
-    this.acceptWebviewEdits = true;
-    if (changed) {
-      outputChannel.appendLine(`[loadApplied] synced host memory (${hash.slice(0, 8)})`);
-    }
-    this.scheduleLint();
+  private enterAgentTurn(label: string, reason: string): void {
+    this.agentTurnActive = true;
+    this.sync.beginAgentTurn();
+    this.cancelPendingSave();
+    this.acceptWebviewEdits = false;
+    this.setupDiskWatchDebounce(AGENT_TURN_WATCH_DEBOUNCE_MS);
+    void this.panel.webview.postMessage({
+      type: "agentTurn",
+      active: true,
+      label,
+    });
+    outputChannel.appendLine(`[agent-turn] started (${reason})`);
+    void this.pushLatestFromDisk(`${reason}-agent-turn-start`, true);
+  }
+
+  private async exitAgentTurn(reason: string): Promise<void> {
+    this.agentTurnActive = false;
+    this.sync.endAgentTurn();
+    this.setupDiskWatchDebounce(WATCH_DEBOUNCE_MS);
+    void this.panel.webview.postMessage({
+      type: "agentTurn",
+      active: false,
+    });
+    outputChannel.appendLine(`[agent-turn] ended (${reason})`);
+    await this.pushLatestFromDisk(`${reason}-agent-turn-end`, true);
   }
 
   private scheduleLint(): void {
@@ -693,22 +770,43 @@ class ExcalidrawEditor implements vscode.Disposable {
     }, LINT_DELAY_MS);
   }
 
-  private async handleWebviewChange(content: string): Promise<void> {
-    if (!this.acceptWebviewEdits) {
+  private async handleWebviewChange(
+    content: string,
+    basedOnGeneration: number
+  ): Promise<void> {
+    if (!this.acceptWebviewEdits || this.agentTurnActive) {
       return;
     }
-
-    const incomingLive = liveElementCountFromJson(content);
-    const currentLive = liveElementCountFromJson(this.document.getText());
-    const diskLive = readDiskLiveCount(() => this.readDiskBytes());
-    if (incomingLive === 0 && (currentLive > 0 || diskLive > 0)) {
-      outputChannel.appendLine("[change] ignored empty wipe");
-      return;
-    }
-    if (incomingLive < diskLive) {
-      outputChannel.appendLine("[change] ignored — disk has more elements");
-      this.hasUnsavedWebviewEdits = false;
-      this.pushLatestFromDisk("change-guard", true);
+    const before = this.sync.snapshot();
+    if (basedOnGeneration !== before.generation) {
+      if (
+        before.phase === "applyingAgent" &&
+        basedOnGeneration < before.generation &&
+        before.awaitingHash
+      ) {
+        if (this.document.updateFromText(content, false)) {
+          void this.panel.webview.postMessage({
+            type: "cancelLoad",
+            generation: before.generation,
+          });
+          void this.panel.webview.postMessage({
+            type: "adoptGeneration",
+            generation: before.generation,
+          });
+          const humanHash = this.document.getHash();
+          this.contentByHash.set(humanHash, content);
+          this.sync.canvasChanged(humanHash);
+          await this.executeSyncEffects(
+            this.sync.diskObserved(before.awaitingHash),
+            "interaction-conflict"
+          );
+          this.scheduleLint();
+        }
+        return;
+      }
+      outputChannel.appendLine(
+        `[change] ignored stale generation ${basedOnGeneration}`
+      );
       return;
     }
 
@@ -717,7 +815,9 @@ class ExcalidrawEditor implements vscode.Disposable {
       return;
     }
 
-    this.hasUnsavedWebviewEdits = true;
+    const hash = this.document.getHash();
+    this.contentByHash.set(hash, content);
+    this.sync.canvasChanged(hash);
     this.scheduleAutoSave();
     this.scheduleLint();
   }
@@ -734,46 +834,11 @@ class ExcalidrawEditor implements vscode.Disposable {
 
   async persistToDisk(): Promise<void> {
     this.cancelPendingSave();
-
-    const diskBytes = this.readDiskBytes();
-    if (diskBytes) {
-      const diskHash = hashContent(diskBytes);
-      const memoryHash = this.document.getHash();
-      if (
-        memoryHash !== diskHash &&
-        diskHash !== this.lastWebviewSaveHash
-      ) {
-        outputChannel.appendLine(
-          `[autosave] blocked — external disk change (${diskHash.slice(0, 8)}) — reloading`
-        );
-        this.hasUnsavedWebviewEdits = false;
-        this.pushLatestFromDisk("persist-guard", true);
-        return;
-      }
-
-      const diskText = new TextDecoder().decode(diskBytes);
-      const diskLive = liveElementCountFromJson(diskText);
-      const memoryLive = liveElementCountFromJson(this.document.getText());
-      if (memoryLive < diskLive) {
-        outputChannel.appendLine(
-          `[autosave] blocked stale memory (${memoryLive} vs disk ${diskLive}) — reloading`
-        );
-        this.hasUnsavedWebviewEdits = false;
-        this.pushLatestFromDisk("disk-guard", true);
-        return;
-      }
+    const [effect] = this.sync.requestHumanSave();
+    if (!effect || effect.type !== "saveHuman") {
+      return;
     }
-
-    try {
-      await this.document.save();
-      this.markSaved();
-      outputChannel.appendLine(
-        `[autosave] ${path.basename(this.document.uri.fsPath)} (${this.document.getHash().slice(0, 8)})`
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      void vscode.window.showErrorMessage(`Failed to save Excalidraw file: ${message}`);
-    }
+    await this.performHumanSave(effect);
   }
 
   private async flushSave(showFeedback: boolean): Promise<void> {
@@ -793,11 +858,191 @@ class ExcalidrawEditor implements vscode.Disposable {
     }
   }
 
-  markSaved(): void {
-    this.hasUnsavedWebviewEdits = false;
-    this.lastWebviewSaveHash = this.document.getHash();
-    this.lastPushedHash = this.lastWebviewSaveHash;
-    this.lastWebviewAppliedHash = this.lastWebviewSaveHash;
+  private async executeSyncEffects(
+    effects: SyncEffect[],
+    reason: string
+  ): Promise<void> {
+    for (const effect of effects) {
+      if (effect.type === "loadCanvas") {
+        const content = this.contentByHash.get(effect.hash);
+        if (!content) {
+          outputChannel.appendLine(
+            `[${reason}] missing content for ${effect.hash.slice(0, 8)}`
+          );
+          continue;
+        }
+        this.pendingLoadContent.set(effect.generation, content);
+        void this.panel.webview.postMessage({
+          type: "load",
+          content,
+          external: effect.origin !== "initial",
+          generation: effect.generation,
+          hash: effect.hash,
+          origin: effect.origin,
+          agentTurn: this.agentTurnActive,
+        });
+        outputChannel.appendLine(
+          `[${reason}] load generation ${effect.generation} (${effect.hash.slice(0, 8)})`
+        );
+        continue;
+      }
+
+      if (effect.type === "preserveConflict") {
+        await this.preserveAgentConflict(effect);
+        this.cancelPendingSave();
+        await this.persistToDisk();
+        continue;
+      }
+
+      if (effect.type === "saveHuman") {
+        await this.performHumanSave(effect);
+      }
+    }
+  }
+
+  private async performHumanSave(
+    effect: Extract<SyncEffect, { type: "saveHuman" }>
+  ): Promise<void> {
+    const humanContent =
+      this.contentByHash.get(effect.humanHash) ??
+      (this.document.getHash() === effect.humanHash
+        ? this.document.getText()
+        : undefined);
+    if (!humanContent) {
+      this.sync.humanSaveFailed();
+      outputChannel.appendLine(
+        `[autosave] missing human revision ${effect.humanHash.slice(0, 8)}`
+      );
+      return;
+    }
+
+    try {
+      const bytes = new TextEncoder().encode(humanContent);
+      const result = await this.document.saveIfDiskHash(
+        effect.expectedDiskHash,
+        bytes
+      );
+      if (!result.saved) {
+        const agentContent = new TextDecoder().decode(result.content);
+        if (classifyDiagramText(agentContent) !== "valid") {
+          this.sync.humanSaveFailed();
+          outputChannel.appendLine(
+            "[autosave] disk JSON is temporarily invalid; keeping human revision dirty"
+          );
+          return;
+        }
+        this.contentByHash.set(result.hash, agentContent);
+        const conflicts = this.sync.humanSaveLostRace(result.hash);
+        await this.executeSyncEffects(conflicts, "save-race");
+        return;
+      }
+
+      this.sync.humanSaveSucceeded(effect.humanHash);
+      outputChannel.appendLine(
+        `[autosave] ${path.basename(this.document.uri.fsPath)} (${effect.humanHash.slice(0, 8)})`
+      );
+      if (this.sync.snapshot().phase === "humanDirty") {
+        this.scheduleAutoSave();
+      }
+    } catch (error) {
+      this.sync.humanSaveFailed();
+      this.scheduleAutoSave();
+      const message = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(
+        `Failed to save Excalidraw file: ${message}`
+      );
+    }
+  }
+
+  private async preserveAgentConflict(
+    effect: Extract<SyncEffect, { type: "preserveConflict" }>
+  ): Promise<void> {
+    const agentContent = this.contentByHash.get(effect.agentHash);
+    if (!agentContent) {
+      return;
+    }
+    const filePath = this.document.uri.fsPath;
+    const ext = path.extname(filePath);
+    const uriPath = this.document.uri.path;
+    const basePath = uriPath.slice(0, uriPath.length - ext.length);
+    const candidateUri = this.document.uri.with({
+      path: `${basePath}.agent-conflict${ext}`,
+    });
+    const metadataUri = this.document.uri.with({
+      path: `${basePath}.agent-conflict.json`,
+    });
+    await vscode.workspace.fs.writeFile(
+      candidateUri,
+      new TextEncoder().encode(agentContent)
+    );
+    await vscode.workspace.fs.writeFile(
+      metadataUri,
+      new TextEncoder().encode(
+        JSON.stringify(
+          {
+            diagram: path.basename(filePath),
+            createdAt: new Date().toISOString(),
+            baseHash: effect.baseHash,
+            humanHash: effect.humanHash,
+            agentHash: effect.agentHash,
+            policy: "human-open-session-wins",
+            candidate: path.basename(candidateUri.fsPath),
+          },
+          null,
+          2
+        )
+      )
+    );
+    outputChannel.appendLine(
+      `[conflict] preserved agent revision → ${path.basename(candidateUri.fsPath)}`
+    );
+    if (this.conflictNotificationOpen) {
+      return;
+    }
+    this.conflictNotificationOpen = true;
+    void vscode.window
+      .showWarningMessage(
+        "Agent changed this diagram while you had unsaved canvas edits. Your canvas was kept; agent version was preserved.",
+        "Open Agent Version",
+        "Replace With Agent Version"
+      )
+      .then(async (choice) => {
+        this.conflictNotificationOpen = false;
+        if (choice === "Open Agent Version") {
+          await vscode.commands.executeCommand("vscode.open", candidateUri);
+          return;
+        }
+        if (choice === "Replace With Agent Version") {
+          const candidate = await vscode.workspace.fs.readFile(candidateUri);
+          const candidateHash = hashContent(candidate);
+          const content = new TextDecoder().decode(candidate);
+          const current = await vscode.workspace.fs.readFile(this.document.uri);
+          const result = await this.document.saveIfDiskHash(
+            hashContent(current),
+            candidate
+          );
+          if (!result.saved) {
+            void vscode.window.showWarningMessage(
+              "Diagram changed again before agent version could replace it. Try again."
+            );
+            return;
+          }
+          this.contentByHash.set(candidateHash, content);
+          await this.executeSyncEffects(
+            this.sync.acceptExternal(candidateHash),
+            "conflict-resolution"
+          );
+        }
+      });
+  }
+
+  private isHumanDirty(): boolean {
+    const phase = this.sync.snapshot().phase;
+    return (
+      phase === "humanDirty" ||
+      phase === "savingHuman" ||
+      phase === "agentConflict"
+    );
   }
 
   private readDiskBytes(): Uint8Array | undefined {
@@ -810,9 +1055,16 @@ class ExcalidrawEditor implements vscode.Disposable {
   }
 
   private watchExternalChanges(): void {
-    const schedulePush = debounce(() => {
-      this.pushLatestFromDisk("watch");
-    }, 50);
+    this.setupDiskWatchDebounce(this.diskWatchDelayMs);
+    const schedulePush = () => {
+      void this.refreshAgentTurnState("watch");
+      this.diskWatchSchedulePush?.();
+    };
+    const scheduleAgentTurnCheck = debounce(() => {
+      void this.refreshAgentTurnState("watch");
+    }, AGENT_TURN_WATCH_DEBOUNCE_MS);
+
+    void this.refreshAgentTurnState("init");
 
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(this.document.uri);
     if (workspaceFolder) {
@@ -836,6 +1088,27 @@ class ExcalidrawEditor implements vscode.Disposable {
           nativeWatcher.close();
         })
       );
+
+      const lockPath = agentTurnLockPath(filePath);
+      const lockDir = path.dirname(lockPath);
+      const lockName = path.basename(lockPath);
+      try {
+        const lockWatcher = fs.watch(lockDir, (_event, filename) => {
+          if (filename?.toString() === lockName) {
+            scheduleAgentTurnCheck();
+          }
+        });
+        this.disposables.push(
+          new vscode.Disposable(() => {
+            lockWatcher.close();
+          })
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        outputChannel.appendLine(
+          `[watch] agent-turn lock watcher unavailable: ${message}`
+        );
+      }
     }
   }
 
@@ -853,7 +1126,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   }
 
   dispose(): void {
-    if (this.hasUnsavedWebviewEdits) {
+    if (this.isHumanDirty()) {
       void this.persistToDisk();
     }
     if (this.saveTimer) {

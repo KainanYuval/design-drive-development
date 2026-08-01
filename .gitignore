@@ -3,6 +3,8 @@ node_modules/
 extension/out/
 extension/media/
 *.vsix
+!shippable/extension/*.vsix
+extension/excalidraw-ai-collab-*.vsix
 
 # Secrets & env
 .env
@@ -28,6 +30,11 @@ npm-debug.log*
 temp
 temp/
 scripts/.capture-cache/
+*.diagram-lint.json
+*.agent-conflict.excalidraw
+*.agent-conflict.json
+*.ddd-write.lock
+*.ddd-agent-turn.lock
 
 # Local-only
 viewer/dist/

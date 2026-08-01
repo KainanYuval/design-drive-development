@@ -71,6 +71,7 @@ async function main() {
     accessSync(join(here, "applet", "main.mjs"), constants.R_OK);
     accessSync(join(here, "dist", "webview.js"), constants.R_OK);
     accessSync(join(here, "dist", "index.html"), constants.R_OK);
+    accessSync(join(here, "..", "extension", "out", "syncCoordinator.js"), constants.R_OK);
   } catch {
     throw new Error("Applet not built. Run: cd extension && npm run build:applet");
   }

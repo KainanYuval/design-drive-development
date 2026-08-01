@@ -46,7 +46,7 @@ function scheduleReload() {
   }
   reloadTimer = setTimeout(() => {
     void session?.pushLatestFromDisk("watch");
-  }, 50);
+  }, session?.getReloadDelayMs?.() ?? 50);
 }
 
 function createWindow() {
@@ -99,9 +99,6 @@ app.whenReady().then(async () => {
   }
 
   const workspaceRoot = findWorkspaceRoot(diagramPath);
-  session = createHostSession({ diagramPath, workspaceRoot, pushToRenderer });
-  await session.init();
-
   session = createHostSession({ diagramPath, workspaceRoot, pushToRenderer });
   await session.init();
   mark("session-init");

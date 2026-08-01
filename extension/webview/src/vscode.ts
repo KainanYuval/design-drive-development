@@ -30,11 +30,13 @@ export const vscode = resolveHost();
 export function sendDocumentChange(
   elements: readonly ExcalidrawElement[],
   appState: Partial<AppState>,
-  files: BinaryFiles
+  files: BinaryFiles,
+  basedOnGeneration: number
 ): void {
   const json = serializeAsJSON(elements, appState, files, "local");
   vscode.postMessage({
     type: "change",
     content: json,
+    basedOnGeneration,
   });
 }
