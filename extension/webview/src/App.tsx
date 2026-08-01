@@ -1,4 +1,4 @@
-import { CaptureUpdateAction, Excalidraw, getSceneVersion } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, Excalidraw } from "@excalidraw/excalidraw";
 import type {
   AppState,
   BinaryFiles,
@@ -29,17 +29,26 @@ type SelectionInfo = {
 };
 
 function parsePayload(raw: string): ExcalidrawPayload {
-  const parsed = JSON.parse(raw) as {
-    elements?: ExcalidrawElement[];
-    appState?: Partial<AppState>;
-    files?: BinaryFiles;
-  };
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { elements: [], appState: {}, files: {} };
+  }
 
-  return {
-    elements: parsed.elements ?? [],
-    appState: parsed.appState ?? {},
-    files: parsed.files ?? {},
-  };
+  try {
+    const parsed = JSON.parse(trimmed) as {
+      elements?: ExcalidrawElement[];
+      appState?: Partial<AppState>;
+      files?: BinaryFiles;
+    };
+
+    return {
+      elements: parsed.elements ?? [],
+      appState: parsed.appState ?? {},
+      files: parsed.files ?? {},
+    };
+  } catch {
+    return { elements: [], appState: {}, files: {} };
+  }
 }
 
 function preserveViewState(
@@ -192,27 +201,24 @@ export function App(): JSX.Element {
     vscode.postMessage({ type: "timing", phase: "diagram-render" });
   }, [payload]);
 
-  const applyExternalPayload = useCallback((raw: string, external = true) => {
+  const applyExternalPayload = useCallback((raw: string, external = true): boolean => {
     const parsed = parsePayload(raw);
     const nextFingerprint = sceneFingerprint(parsed.elements, parsed.files);
     if (nextFingerprint === lastPersistedScene.current) {
-      return;
+      return true;
     }
 
     const currentElements = apiRef.current?.getSceneElements() ?? latestElements.current;
     if (external) {
       if (isPointerDown.current) {
         pendingExternalLoad.current = raw;
-        return;
+        return false;
       }
 
       const incomingLive = liveElementCount(parsed.elements);
       const currentLive = liveElementCount(currentElements);
-      if (
-        incomingLive < currentLive ||
-        getSceneVersion(parsed.elements) < getSceneVersion(currentElements)
-      ) {
-        return;
+      if (incomingLive === 0 && currentLive > 0) {
+        return false;
       }
     }
 
@@ -236,7 +242,7 @@ export function App(): JSX.Element {
         captureUpdate: CaptureUpdateAction.NEVER,
       });
       schedulePersistReady(api);
-      return;
+      return true;
     }
 
     readyToPersist.current = false;
@@ -245,7 +251,12 @@ export function App(): JSX.Element {
       appState: preserveViewState(parsed.appState, latestAppState.current),
       files: parsed.files,
     });
+    return true;
   }, [schedulePersistReady]);
+
+  const ackExternalLoad = useCallback((raw: string) => {
+    vscode.postMessage({ type: "loadApplied", content: raw });
+  }, []);
 
   const flushPendingExternalLoad = useCallback(() => {
     const raw = pendingExternalLoad.current;
@@ -253,8 +264,10 @@ export function App(): JSX.Element {
       return;
     }
     pendingExternalLoad.current = null;
-    applyExternalPayload(raw, true);
-  }, [applyExternalPayload]);
+    if (applyExternalPayload(raw, true)) {
+      ackExternalLoad(raw);
+    }
+  }, [ackExternalLoad, applyExternalPayload]);
 
   const insertDesign = useCallback(
     (
@@ -313,7 +326,9 @@ export function App(): JSX.Element {
     ) => {
       const message = event.data;
       if (message?.type === "load" && typeof message.content === "string") {
-        applyExternalPayload(message.content, message.external !== false);
+        if (applyExternalPayload(message.content, message.external !== false)) {
+          ackExternalLoad(message.content);
+        }
         return;
       }
 
@@ -385,7 +400,7 @@ export function App(): JSX.Element {
         window.clearTimeout(persistReadyTimer.current);
       }
     };
-  }, [applyExternalPayload, insertDesign]);
+  }, [ackExternalLoad, applyExternalPayload, insertDesign]);
 
   if (!payload) {
     return (

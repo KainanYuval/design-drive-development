@@ -1,5 +1,13 @@
 # Running spec
 
+### 2026-08-01 — Empty *.excalidraw opens to blank canvas (no hang)
+- **Decision:** Treat empty/invalid diagram JSON as default empty Excalidraw doc; seed disk on first `ready`; webview `parsePayload` never throws on blank input.
+- **Rationale:** New zero-byte files made `JSON.parse("")` throw → no `loadApplied` → UI stuck on “Loading diagram…”.
+
+### 2026-08-01 — Agent disk edits reload open tab (no reopen)
+- **Decision:** Webview accepts external loads on content fingerprint change only (drop Excalidraw `getSceneVersion` gate); host syncs memory on `loadApplied` ack, tracks `lastWebviewAppliedHash` so watch retries until canvas matches disk.
+- **Rationale:** Excalidraw bumps element versions on mount; agent rewrite looked “older” and was rejected while host marked disk synced — user saw stale canvas until tab reopen.
+
 ### 2026-07-20 — No disk chips under excal arrow path
 - **Decision:** Satellite disk paths (`*.metadata.md`, `.designs/`, `project/`) live as subtitle line inside the `excal` bar; no separate chip boxes between excal and host columns.
 - **Rationale:** Vertical excal→host arrows crossed chip rectangles (`arrow-through-shape`); looked like arrow drawn over blob.

@@ -18,6 +18,7 @@ import {
 } from "./designLibrary";
 import { ensureDesignsFolderConsent } from "./designsConsent";
 import { DiagramLintReporter } from "./diagramLintReport";
+import { isValidDiagramJson, normalizeDiagramText } from "./diagramDefaults";
 
 const OUTPUT_CHANNEL = "Design Drive Development (DDD)";
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL);
@@ -263,6 +264,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   private hasUnsavedWebviewEdits = false;
   private lastPushedHash: string;
   private lastWebviewSaveHash: string;
+  private lastWebviewAppliedHash: string;
   private selectionRequestId = 0;
   private pendingSelectionRequests = new Map<
     number,
@@ -288,6 +290,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   ) {
     this.lastPushedHash = this.document.getHash();
     this.lastWebviewSaveHash = this.lastPushedHash;
+    this.lastWebviewAppliedHash = this.lastPushedHash;
     outputChannel.appendLine(`Opened ${this.document.uri.fsPath}`);
 
     this.panel.webview.options = {
@@ -311,12 +314,17 @@ class ExcalidrawEditor implements vscode.Disposable {
       this.panel.webview.onDidReceiveMessage(async (message) => {
         if (message?.type === "ready") {
           this.webviewReady = true;
-          this.pushLatestFromDisk("ready", true);
+          void this.handleWebviewReady();
           return;
         }
 
         if (message?.type === "pull") {
           this.pushLatestFromDisk("pull");
+          return;
+        }
+
+        if (message?.type === "loadApplied" && typeof message.content === "string") {
+          this.applyWebviewLoad(message.content);
           return;
         }
 
@@ -588,6 +596,34 @@ class ExcalidrawEditor implements vscode.Disposable {
     });
   }
 
+  private async handleWebviewReady(): Promise<void> {
+    await this.seedEmptyDiagramIfNeeded();
+    this.pushLatestFromDisk("ready", true);
+  }
+
+  private async seedEmptyDiagramIfNeeded(): Promise<void> {
+    const bytes = this.readDiskBytes();
+    if (!bytes) {
+      return;
+    }
+
+    const rawText = new TextDecoder().decode(bytes);
+    if (isValidDiagramJson(rawText)) {
+      return;
+    }
+
+    const normalized = normalizeDiagramText(rawText);
+    this.document.updateFromText(normalized, false);
+    try {
+      await this.document.save();
+      this.markSaved();
+      outputChannel.appendLine("[ready] seeded empty diagram on disk");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      outputChannel.appendLine(`[ready] failed to seed diagram: ${message}`);
+    }
+  }
+
   pushLatestFromDisk(reason: string, force = false): void {
     if (!this.webviewReady) {
       return;
@@ -599,8 +635,8 @@ class ExcalidrawEditor implements vscode.Disposable {
       return;
     }
 
-    const diskText = new TextDecoder().decode(bytes);
-    const diskHash = hashContent(bytes);
+    const diskText = normalizeDiagramText(new TextDecoder().decode(bytes));
+    const diskHash = hashContent(new TextEncoder().encode(diskText));
     const memoryHash = this.document.getHash();
 
     if (!force && this.hasUnsavedWebviewEdits && diskHash === this.lastWebviewSaveHash) {
@@ -618,26 +654,33 @@ class ExcalidrawEditor implements vscode.Disposable {
     }
 
     if (!force) {
-      if (diskHash === memoryHash) {
+      if (diskHash === memoryHash && diskHash === this.lastWebviewAppliedHash) {
         this.lastPushedHash = diskHash;
         return;
       }
-      if (diskHash === this.lastPushedHash) {
+      if (diskHash === this.lastPushedHash && diskHash === this.lastWebviewAppliedHash) {
         return;
       }
     }
 
-    this.document.updateFromBytes(bytes, false);
-    this.lastPushedHash = diskHash;
-    this.acceptWebviewEdits = true;
-
     void this.panel.webview.postMessage({
       type: "load",
-      content: this.document.getText(),
+      content: diskText,
       external: reason !== "ready",
     });
 
     outputChannel.appendLine(`[${reason}] pushed update (${diskHash.slice(0, 8)})`);
+  }
+
+  private applyWebviewLoad(content: string): void {
+    const changed = this.document.updateFromText(content, false);
+    const hash = this.document.getHash();
+    this.lastPushedHash = hash;
+    this.lastWebviewAppliedHash = hash;
+    this.acceptWebviewEdits = true;
+    if (changed) {
+      outputChannel.appendLine(`[loadApplied] synced host memory (${hash.slice(0, 8)})`);
+    }
     this.scheduleLint();
   }
 
@@ -754,6 +797,7 @@ class ExcalidrawEditor implements vscode.Disposable {
     this.hasUnsavedWebviewEdits = false;
     this.lastWebviewSaveHash = this.document.getHash();
     this.lastPushedHash = this.lastWebviewSaveHash;
+    this.lastWebviewAppliedHash = this.lastWebviewSaveHash;
   }
 
   private readDiskBytes(): Uint8Array | undefined {
