@@ -8,9 +8,8 @@ Pre-built artifacts for installing DDD without running the full dev build chain.
 |------|------|
 | `extension/*.vsix` | Cursor / VS Code extension (compiled host + webview) |
 | `skills/design-drive-development/` | Agent skill (workflow, bindings, agent turn, format) |
-| `viewer/dist/` | Shared Excalidraw webview bundle for applets |
-| `viewer/sync/` | Host sync modules (`syncCoordinator.js`, `agentTurn.js`) |
-| `viewer/applet/` | Electron applet entry + view scripts |
+| `viewer/dist/` | Shared Excalidraw webview bundle for the Rust popup |
+| `viewer/view-rust.mjs` | Launch helper for the Rust standalone viewer |
 | `viewer/ddd-applet-rust` | Rust standalone viewer (when built on this platform) |
 | `mechanisms/` | Agent turn lock + bindings/captions quick reference |
 | `MANIFEST.json` | Assembly metadata |
@@ -23,7 +22,7 @@ From repo root:
 npm run ship
 ```
 
-Runs extension tests, builds webview + applet dist, packages VSIX, and copies skills/mechanisms here.
+Runs extension tests, builds webview + viewer dist, packages VSIX, and copies skills/mechanisms here.
 
 ## Install (consumers)
 

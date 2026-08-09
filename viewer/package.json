@@ -1,8 +1,0 @@
-{
-  "name": "ddd-applet",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "electron": "^33.2.1"
-  }
-}

@@ -7,17 +7,20 @@
 
 ## Decisions
 
-- **architecture.excalidraw** documents full software architecture (5 swimlanes: authoring, persistence, hosts, webview, build) — not just product flow.
-- Default standalone viewer: Rust applet (`npm run view --open`).
-- Electron applet kept as fallback (`npm run view:electron --open`).
-- Shared webview bundle: `extension/webview` → `extension/media` + `viewer/dist`.
+- **architecture.excalidraw** answers: **who owns each part, and what IO flows between them?**
+- Legend first; shapes match legend. Flow subtitle: write → watch → load → change → save.
+- Agents write disk directly. Human paints into hosts. Hosts load runtime + autosave disk.
+- Hosts = one rect (`ide · rust`). Runtime = ellipse (`excalidraw` / `js`). Build off-canvas.
+- Default popup: Rust applet. Shared webview: `extension/webview` → `media` + `viewer/dist`.
 
 ## Visual Preferences
 
-- **Legend (required):** compact panel upper-left (~24,24); one row per shape/color used; swatches match element fills exactly; main diagram starts at x ≥ 300.
-- **This diagram (DDD repo):** yellow = agent/tooling; green = disk artifact; blue = Cursor extension; orange = Rust host; purple = Electron host; gray = shared webview; pink = build/CLI; solid arrows = sync/IPC; dashed = build/spawn.
-- Rounded rectangles for hosts and storage; roughness 0 on legend and labels.
-- Horizontal layout for primary data flow.
+- **Legend question:** Who owns each part? What flows between them?
+- **Shapes:** Client yellow · Disk green · Host outline · Runtime gray ellipse.
+- **Arrows:** Solid ↓ = forward IO (write / watch / paint). Dashed = load scene + return path (change / autosave) on right elbow.
+- **IO on boxes:** short `IN` / `OUT` lines inside shapes. Arrow labels name payload (`write JSON`, `scene JSON`, …).
+- **Layout:** agents → disk → hosts(+human side) → runtime. Gaps ~110px. Main draw x ≥ 300.
+- **Avoid:** swimlanes, build row, Electron, arrow-through-disk, unlabeled arrows.
 
 ## Interaction Preferences
 
@@ -29,7 +32,7 @@
 
 ## Learned Preferences
 
-- User dislikes crossing arrows.
-- Legend must look intentional — readable swatches, short labels, not cramped.
+- User wants flow + IO on relevant parts, not ownership boxes alone.
+- Prefers hosts grouped + JS ellipse. Dislikes short/random arrows.
 
 ## Saved Components

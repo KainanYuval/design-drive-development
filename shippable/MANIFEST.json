@@ -1,14 +1,14 @@
 {
   "name": "design-drive-development-shippable",
   "version": "0.3.0",
-  "assembledAt": "2026-08-01T15:03:26.875Z",
+  "assembledAt": "2026-08-01T15:23:39.689Z",
   "vsix": "design-drive-development-0.3.0.vsix",
   "rustApplet": true,
   "contents": {
     "extension": "shippable/extension/design-drive-development-0.3.0.vsix",
     "skills": "shippable/skills/design-drive-development",
     "viewerDist": "shippable/viewer/dist",
-    "viewerSync": "shippable/viewer/sync",
+    "viewerLauncher": "shippable/viewer/view-rust.mjs",
     "mechanisms": "shippable/mechanisms"
   }
 }

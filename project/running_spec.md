@@ -1,5 +1,13 @@
 # Running spec
 
+### 2026-08-01 — Architecture flow + IO labels
+- **Decision:** Diagram shows ownership and IO: agents write disk; human paints into hosts; disk watch → hosts; hosts load scene JSON into runtime; dashed return = change events + autosave. IO lines inside boxes; payloads on arrows.
+- **Rationale:** User asked for flow with IOs of relevant parts, not static ownership boxes alone.
+
+### 2026-08-01 — Architecture rewrite: sparse ownership map
+- **Decision:** `architecture.excalidraw` = legend (4 shapes) then clients → disk → one hosts box (IDE+Rust) → runtime ellipse. Solid=disk IO; dashed=host loads runtime. Build packages off-canvas.
+- **Rationale:** Prior layered chart failed ownership readability; user sketch language + fewer boxes = lower attention cost.
+
 ### 2026-08-01 — Disk reload needs arrow geometry, not bindings alone
 - **Decision:** Agents must co-update arrow/line `x`/`y`/`points` whenever endpoints move; `startBinding`/`endBinding` alone do not recompute on external `updateScene` load. Captions belong in `containerId`-bound text, not overlay text.
 - **Rationale:** Live multi-frame disk writes moved Hello but left stale arrow coords — arrow looked detached. Documented in `bindings-and-captions.md`.
