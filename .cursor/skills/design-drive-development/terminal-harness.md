@@ -34,8 +34,9 @@ Open the DDD diagram applet (standalone desktop window)?
 
 ```bash
 cd extension
-npm run build:applet   # once
+npm run build:applet   # once — copies webview bundle to viewer/dist/
+npm run build:rust-applet   # once — cargo build --release
 npm run view -- ../architecture.excalidraw --open
 ```
 
-Opens a **separate Electron window** (not Cursor). Live reload when the file changes on disk.
+Opens a **separate Rust desktop window** (not Cursor). Live reload when the file changes on disk.
