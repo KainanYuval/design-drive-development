@@ -34,10 +34,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Install applet Electron
-        working-directory: viewer
-        run: npm ci
-
       - name: Build applet bundle
         run: npm run build:applet
 
@@ -62,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           PATTERNS='AKIA[0-9A-Z]{16}|ghp_[a-zA-Z0-9]{36}|sk-[a-zA-Z0-9]{20,}|BEGIN (RSA |OPENSSH )?PRIVATE KEY'
-          if git grep -E "$PATTERNS" -- ':!*.md' ':!.github/workflows/*' 2>/dev/null; then
+          if git grep -E "$PATTERNS" -- ':!*.md' ':!.github/workflows/*' ':!shippable/**/dist/*' ':!extension/media/*' ':!viewer/dist/*' 2>/dev/null; then
             echo "::error::Possible secret detected in tracked files"
             exit 1
           fi

@@ -7,7 +7,6 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cloneDesignElements, designInsertOffset } from "./designElements";
-import { applyOrbitFrame, collectOrbitJobs } from "./orbitAnimation";
 import { sendDocumentChange, vscode } from "./vscode";
 
 declare global {
@@ -183,8 +182,6 @@ export function App(): JSX.Element {
   const currentGeneration = useRef(0);
   const readyToPersist = useRef(false);
   const persistReadyTimer = useRef<number | null>(null);
-  const orbitingRef = useRef(false);
-  const [sceneApiVersion, setSceneApiVersion] = useState(0);
 
   const excalidrawInitialData = useMemo(() => {
     if (!payload) {
@@ -199,48 +196,6 @@ export function App(): JSX.Element {
       },
     };
   }, [payload]);
-
-  useEffect(() => {
-    const api = apiRef.current;
-    if (!api || !payload) {
-      return;
-    }
-
-    const jobs = collectOrbitJobs(api.getSceneElements());
-    if (jobs.length === 0) {
-      return;
-    }
-
-    const startTime = performance.now();
-    let frameId = 0;
-
-    const tick = (now: number) => {
-      const currentApi = apiRef.current;
-      if (!currentApi) {
-        return;
-      }
-
-      const elapsedSeconds = (now - startTime) / 1000;
-      const elements = currentApi.getSceneElements();
-      const nextElements = applyOrbitFrame(elements, jobs, elapsedSeconds);
-      if (nextElements) {
-        orbitingRef.current = true;
-        currentApi.updateScene({
-          elements: nextElements,
-          captureUpdate: CaptureUpdateAction.NEVER,
-        });
-        latestElements.current = nextElements;
-        orbitingRef.current = false;
-      }
-
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [payload, sceneApiVersion]);
 
   const schedulePersistReady = useCallback((api: ExcalidrawImperativeAPI) => {
     readyToPersist.current = false;
@@ -613,7 +568,6 @@ export function App(): JSX.Element {
             apiRef.current = api;
             suppressChangeUntil.current = Date.now() + 500;
             schedulePersistReady(api);
-            setSceneApiVersion((version) => version + 1);
           }}
           initialData={excalidrawInitialData}
           onPointerDown={() => {
@@ -630,9 +584,6 @@ export function App(): JSX.Element {
             latestElements.current = elements;
             latestFiles.current = files;
             if (agentTurnActiveRef.current) {
-              return;
-            }
-            if (orbitingRef.current) {
               return;
             }
             if (!readyToPersist.current) {

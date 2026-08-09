@@ -135,7 +135,6 @@
     "build": "npm run compile && npm run build:webview && npm run build:applet",
     "test": "npm run compile && node --test out/syncCoordinator.test.js",
     "view": "node ../viewer/view-rust.mjs",
-    "view:electron": "node ../viewer/view.mjs",
     "view:rust": "node ../viewer/view-rust.mjs",
     "watch": "tsc -watch -p .",
     "package": "vsce package --no-dependencies",
