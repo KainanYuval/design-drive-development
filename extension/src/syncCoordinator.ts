@@ -6,7 +6,7 @@ export type SyncPhase =
   | "applyingAgent"
   | "agentConflict";
 
-export type LoadOrigin = "initial" | "agent" | "conflict-resolution";
+export type LoadOrigin = "initial" | "agent" | "conflict-resolution" | "undo" | "redo";
 
 export type SyncEffect =
   | {
@@ -232,6 +232,26 @@ export class SyncCoordinator {
   acceptExternal(hash: string): SyncEffect[] {
     this.state.diskHash = hash;
     return [this.beginLoad(hash, "conflict-resolution")];
+  }
+
+  forceLoad(hash: string, origin: LoadOrigin): SyncEffect[] {
+    this.state.diskHash = hash;
+    return [this.beginLoad(hash, origin)];
+  }
+
+  revertUnsavedHuman(): SyncEffect[] {
+    if (
+      this.state.phase !== "humanDirty" &&
+      this.state.phase !== "agentConflict"
+    ) {
+      return [];
+    }
+
+    if (this.state.canvasHash === this.state.baseHash) {
+      return [];
+    }
+
+    return [this.beginLoad(this.state.baseHash, "undo")];
   }
 
   private beginLoad(hash: string, origin: LoadOrigin): SyncEffect {

@@ -34,10 +34,22 @@ type IncomingLoad = {
   generation: number;
   hash: string;
   agentTurn?: boolean;
+  origin?: string;
+};
+
+type IncomingPatch = {
+  generation: number;
+  hash: string;
+  added: ExcalidrawElement[];
+  updated: ExcalidrawElement[];
+  removedIds: string[];
+  files: BinaryFiles;
+  agentTurn?: boolean;
+  origin?: string;
 };
 
 const PERSIST_READY_MS = 100;
-const AGENT_TURN_PERSIST_READY_MS = 16;
+const AGENT_TURN_PERSIST_READY_MS = 33;
 
 function parsePayload(raw: string): ExcalidrawPayload {
   const trimmed = raw.trim();
@@ -182,6 +194,28 @@ export function App(): JSX.Element {
   const currentGeneration = useRef(0);
   const readyToPersist = useRef(false);
   const persistReadyTimer = useRef<number | null>(null);
+  const pendingPatchFrame = useRef<number | null>(null);
+  const pendingPatchLoad = useRef<IncomingPatch | null>(null);
+
+  const mergeScenePatch = useCallback(
+    (
+      currentElements: readonly ExcalidrawElement[],
+      patch: IncomingPatch
+    ): ExcalidrawElement[] => {
+      const byId = new Map(currentElements.map((element) => [element.id, element]));
+      for (const id of patch.removedIds) {
+        byId.delete(id);
+      }
+      for (const element of patch.updated) {
+        byId.set(element.id, element);
+      }
+      for (const element of patch.added) {
+        byId.set(element.id, element);
+      }
+      return Array.from(byId.values());
+    },
+    []
+  );
 
   const excalidrawInitialData = useMemo(() => {
     if (!payload) {
@@ -234,6 +268,75 @@ export function App(): JSX.Element {
     vscode.postMessage({ type: "timing", phase: "diagram-render" });
   }, [payload]);
 
+  const applyExternalPatch = useCallback((patch: IncomingPatch): boolean => {
+    if (patch.generation < currentGeneration.current) {
+      return false;
+    }
+
+    if (patch.agentTurn !== undefined) {
+      agentTurnActiveRef.current = patch.agentTurn;
+      setAgentTurnActive(patch.agentTurn);
+    }
+
+    suppressChangeUntil.current = agentTurnActiveRef.current
+      ? Date.now() + 80
+      : Date.now() + 120;
+
+    pendingLoadAck.current = {
+      generation: patch.generation,
+      hash: patch.hash,
+    };
+
+    const api = apiRef.current;
+    if (api) {
+      const nextElements = mergeScenePatch(api.getSceneElements(), patch);
+      const nextFiles = { ...api.getFiles(), ...patch.files };
+      readyToPersist.current = false;
+      api.updateScene({
+        elements: nextElements,
+        files: nextFiles,
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+      api.history.clear();
+      latestElements.current = nextElements;
+      latestFiles.current = nextFiles;
+      lastPersistedScene.current = sceneFingerprint(nextElements, nextFiles);
+      schedulePersistReady(api);
+      return true;
+    }
+
+    const baseElements = latestElements.current.length
+      ? latestElements.current
+      : payload?.elements ?? [];
+    const nextElements = mergeScenePatch(baseElements, patch);
+    const nextFiles = { ...latestFiles.current, ...patch.files };
+    readyToPersist.current = false;
+    latestElements.current = nextElements;
+    latestFiles.current = nextFiles;
+    lastPersistedScene.current = sceneFingerprint(nextElements, nextFiles);
+    setPayload({
+      elements: nextElements,
+      appState: preserveViewState(payload?.appState ?? {}, latestAppState.current),
+      files: nextFiles,
+    });
+    return true;
+  }, [mergeScenePatch, payload?.appState, payload?.elements, schedulePersistReady]);
+
+  const queueExternalPatch = useCallback((patch: IncomingPatch) => {
+    pendingPatchLoad.current = patch;
+    if (pendingPatchFrame.current !== null) {
+      return;
+    }
+    pendingPatchFrame.current = window.requestAnimationFrame(() => {
+      pendingPatchFrame.current = null;
+      const latest = pendingPatchLoad.current;
+      pendingPatchLoad.current = null;
+      if (latest) {
+        applyExternalPatch(latest);
+      }
+    });
+  }, [applyExternalPatch]);
+
   const applyExternalPayload = useCallback((load: IncomingLoad): boolean => {
     if (load.generation < currentGeneration.current) {
       return false;
@@ -277,6 +380,9 @@ export function App(): JSX.Element {
         files: parsed.files,
         captureUpdate: CaptureUpdateAction.NEVER,
       });
+      if (load.external) {
+        api.history.clear();
+      }
       schedulePersistReady(api);
       return true;
     }
@@ -403,6 +509,30 @@ export function App(): JSX.Element {
       }
 
       if (
+        message?.type === "patch" &&
+        typeof message.generation === "number" &&
+        typeof message.hash === "string" &&
+        Array.isArray(message.added) &&
+        Array.isArray(message.updated) &&
+        Array.isArray(message.removedIds)
+      ) {
+        queueExternalPatch({
+          generation: message.generation,
+          hash: message.hash,
+          added: message.added as ExcalidrawElement[],
+          updated: message.updated as ExcalidrawElement[],
+          removedIds: message.removedIds as string[],
+          files:
+            typeof message.files === "object" && message.files !== null
+              ? (message.files as BinaryFiles)
+              : {},
+          agentTurn: message.agentTurn === true,
+          origin: typeof message.origin === "string" ? message.origin : undefined,
+        });
+        return;
+      }
+
+      if (
         message?.type === "load" &&
         typeof message.content === "string" &&
         typeof message.generation === "number" &&
@@ -414,6 +544,7 @@ export function App(): JSX.Element {
           generation: message.generation,
           hash: message.hash,
           agentTurn: message.agentTurn === true,
+          origin: typeof message.origin === "string" ? message.origin : undefined,
         });
         return;
       }
@@ -449,44 +580,71 @@ export function App(): JSX.Element {
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey) {
-        if (event.key.toLowerCase() === "s" && !event.shiftKey && !event.altKey) {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          vscode.postMessage({ type: "save" });
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (key === "s" && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        vscode.postMessage({ type: "save" });
+        return;
+      }
+
+      if (key === "z") {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        vscode.postMessage({ type: event.shiftKey ? "redo" : "undo" });
+        return;
+      }
+
+      if (key === "y" && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        vscode.postMessage({ type: "redo" });
+        return;
+      }
+
+      if (key === "c" && !event.shiftKey) {
+        const api = apiRef.current;
+        if (!api) {
           return;
         }
 
-        if (event.key.toLowerCase() === "c" && !event.shiftKey && !event.altKey) {
-          const api = apiRef.current;
-          if (!api) {
-            return;
-          }
-
-          const selection = collectSelection(api);
-          if (selection.length === 0) {
-            return;
-          }
-
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          vscode.postMessage({ type: "copySelectionReference", silent: true });
+        const selection = collectSelection(api);
+        if (selection.length === 0) {
+          return;
         }
+
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        vscode.postMessage({ type: "copySelectionReference", silent: true });
       }
     };
 
     window.addEventListener("message", onMessage);
     window.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
     vscode.postMessage({ type: "ready" });
 
     return () => {
       window.removeEventListener("message", onMessage);
       window.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
       if (persistReadyTimer.current !== null) {
         window.clearTimeout(persistReadyTimer.current);
       }
+      if (pendingPatchFrame.current !== null) {
+        window.cancelAnimationFrame(pendingPatchFrame.current);
+      }
     };
-  }, [applyExternalPayload, insertDesign]);
+  }, [applyExternalPayload, insertDesign, queueExternalPatch]);
 
   if (!payload) {
     return (

@@ -56,9 +56,55 @@
         "command": "design-drive-development.insertDesign",
         "title": "Insert Design from Repository",
         "category": "DDD"
+      },
+      {
+        "command": "design-drive-development.undo",
+        "title": "Undo Diagram Change",
+        "category": "DDD"
+      },
+      {
+        "command": "design-drive-development.redo",
+        "title": "Redo Diagram Change",
+        "category": "DDD"
       }
     ],
     "keybindings": [
+      {
+        "command": "-undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "-redo",
+        "key": "ctrl+shift+z",
+        "mac": "cmd+shift+z",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "-redo",
+        "key": "ctrl+y",
+        "mac": "cmd+y",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "design-drive-development.undo",
+        "key": "ctrl+z",
+        "mac": "cmd+z",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "design-drive-development.redo",
+        "key": "ctrl+shift+z",
+        "mac": "cmd+shift+z",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
+      {
+        "command": "design-drive-development.redo",
+        "key": "ctrl+y",
+        "mac": "cmd+y",
+        "when": "activeCustomEditorId == design-drive-development.editor"
+      },
       {
         "command": "design-drive-development.copySelectionReference",
         "key": "shift+alt+c",
@@ -133,7 +179,7 @@
     "build:applet": "npm run compile && node esbuild.applet.mjs && cp ../viewer/index.html ../viewer/dist/index.html",
     "build:rust-applet": "cargo build --release --manifest-path ../viewer/rust/Cargo.toml",
     "build": "npm run compile && npm run build:webview && npm run build:applet",
-    "test": "npm run compile && node --test out/syncCoordinator.test.js",
+    "test": "npm run compile && node --test out/syncCoordinator.test.js out/revisionHistory.test.js out/elementDiff.test.js",
     "view": "node ../viewer/view-rust.mjs",
     "view:rust": "node ../viewer/view-rust.mjs",
     "watch": "tsc -watch -p .",

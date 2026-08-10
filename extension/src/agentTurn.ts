@@ -1,9 +1,12 @@
 import * as fs from "node:fs";
 
 export const WATCH_DEBOUNCE_MS = 50;
-export const AGENT_TURN_WATCH_DEBOUNCE_MS = 16;
+/** ~30fps coalesced delivery during agent live interaction */
+export const LIVE_INTERACTION_FRAME_MS = 33;
+export const AGENT_TURN_WATCH_DEBOUNCE_MS = LIVE_INTERACTION_FRAME_MS;
 export const PERSIST_READY_MS = 100;
-export const AGENT_TURN_PERSIST_READY_MS = 16;
+/** Match live frame budget so loadApplied ack does not add extra latency */
+export const AGENT_TURN_PERSIST_READY_MS = LIVE_INTERACTION_FRAME_MS;
 export const AGENT_TURN_LOCK_SUFFIX = ".ddd-agent-turn.lock";
 export const AGENT_TURN_DEFAULT_LABEL = "Agent turn";
 

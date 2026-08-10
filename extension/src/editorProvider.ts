@@ -24,11 +24,28 @@ import {
 } from "./diagramDefaults";
 import {
   AGENT_TURN_WATCH_DEBOUNCE_MS,
+  LIVE_INTERACTION_FRAME_MS,
   agentTurnLockPath,
   readAgentTurnLockSync,
   WATCH_DEBOUNCE_MS,
 } from "./agentTurn";
-import { SyncCoordinator, SyncEffect } from "./syncCoordinator";
+import {
+  diffElements,
+  parseDiagramElements,
+  parseDiagramFiles,
+  shouldUseFullReload,
+  snapshotElements,
+  type DiagramElement,
+} from "./elementDiff";
+import { SyncCoordinator, SyncEffect, LoadOrigin } from "./syncCoordinator";
+import { RevisionHistory, RevisionSource } from "./revisionHistory";
+import {
+  hydrateRevisionEntries,
+  loadPersistedIndex,
+  loadPersistedSnapshot,
+  persistRevisionIndex,
+  persistRevisionSnapshot,
+} from "./revisionStore";
 
 const OUTPUT_CHANNEL = "Design Drive Development (DDD)";
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL);
@@ -156,12 +173,36 @@ export class ExcalidrawEditorProvider implements vscode.CustomEditorProvider<Exc
       }
     );
 
+    const undoCommand = vscode.commands.registerCommand(
+      "design-drive-development.undo",
+      async () => {
+        const editor = provider.getActiveEditor();
+        if (!editor) {
+          return;
+        }
+        await editor.undo();
+      }
+    );
+
+    const redoCommand = vscode.commands.registerCommand(
+      "design-drive-development.redo",
+      async () => {
+        const editor = provider.getActiveEditor();
+        if (!editor) {
+          return;
+        }
+        await editor.redo();
+      }
+    );
+
     return vscode.Disposable.from(
       editorRegistration,
       reopenCommand,
       copySelectionCommand,
       saveDesignCommand,
       insertDesignCommand,
+      undoCommand,
+      redoCommand,
       { dispose: () => lintReporter.dispose() }
     );
   }
@@ -178,15 +219,22 @@ export class ExcalidrawEditorProvider implements vscode.CustomEditorProvider<Exc
 
   getActiveEditor(): ExcalidrawEditor | undefined {
     const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
-    if (!(activeTab?.input instanceof vscode.TabInputCustom)) {
-      return undefined;
+    if (activeTab?.input instanceof vscode.TabInputCustom) {
+      if (activeTab.input.viewType === ExcalidrawEditorProvider.viewType) {
+        const editor = this.openEditors.get(activeTab.input.uri.toString());
+        if (editor) {
+          return editor;
+        }
+      }
     }
 
-    if (activeTab.input.viewType !== ExcalidrawEditorProvider.viewType) {
-      return undefined;
+    for (const editor of this.openEditors.values()) {
+      if (editor.isVisible()) {
+        return editor;
+      }
     }
 
-    return this.openEditors.get(activeTab.input.uri.toString());
+    return undefined;
   }
 
   async openCustomDocument(
@@ -258,9 +306,86 @@ class ExcalidrawEditor implements vscode.Disposable {
   private diskWatchDelayMs = WATCH_DEBOUNCE_MS;
   private diskWatchSchedulePush: (() => void) | undefined;
   private readonly sync: SyncCoordinator;
+  private readonly revisionHistory = new RevisionHistory();
   private readonly contentByHash = new Map<string, string>();
   private readonly pendingLoadContent = new Map<number, string>();
+  private readonly pendingLoadOrigins = new Map<number, LoadOrigin>();
+  private revisionNavigationDepth = 0;
   private conflictNotificationOpen = false;
+  private liveInteractionActive = false;
+  private liveCanvasElements: DiagramElement[] = [];
+  private pendingLiveDiskHash: string | null = null;
+  private pendingLiveDiskText: string | null = null;
+  private liveFlushTimer: NodeJS.Timeout | null = null;
+  private deferredRevisionCheckpoint:
+    | { hash: string; origin: LoadOrigin }
+    | null = null;
+
+  isVisible(): boolean {
+    return this.panel.visible;
+  }
+
+  private diagramPath(): string | undefined {
+    if (this.document.uri.scheme !== "file" || !this.document.uri.fsPath) {
+      return undefined;
+    }
+    return this.document.uri.fsPath;
+  }
+
+  private hydrateRevisionStore(): void {
+    const diagramPath = this.diagramPath();
+    if (!diagramPath) {
+      return;
+    }
+
+    const persisted = loadPersistedIndex(diagramPath);
+    if (!persisted) {
+      return;
+    }
+
+    const { entries, snapshots } = hydrateRevisionEntries(diagramPath, persisted);
+    if (entries.length === 0) {
+      return;
+    }
+
+    for (const [hash, content] of snapshots) {
+      this.contentByHash.set(hash, content);
+    }
+
+    this.revisionHistory.restore(entries, persisted.index);
+    outputChannel.appendLine(
+      `[history] restored ${entries.length} revision(s) from sidecar`
+    );
+  }
+
+  private persistRevision(
+    hash: string,
+    content: string,
+    source: RevisionSource
+  ): void {
+    const diagramPath = this.diagramPath();
+    if (!diagramPath) {
+      return;
+    }
+    persistRevisionSnapshot(diagramPath, hash, content, source);
+  }
+
+  private checkpointCurrentRevision(source: RevisionSource): void {
+    const currentHash = this.sync.snapshot().canvasHash;
+    const content =
+      this.contentByHash.get(currentHash) ??
+      (this.document.getHash() === currentHash ? this.document.getText() : undefined);
+    if (!content) {
+      return;
+    }
+
+    this.contentByHash.set(currentHash, content);
+    this.revisionHistory.push({ hash: currentHash, source });
+    this.persistRevision(currentHash, content, source);
+    outputChannel.appendLine(
+      `[history] checkpoint before external load (${currentHash.slice(0, 8)}, ${source})`
+    );
+  }
   private invalidDiskWarningHash = "";
   private selectionRequestId = 0;
   private pendingSelectionRequests = new Map<
@@ -287,6 +412,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   ) {
     this.sync = new SyncCoordinator(this.document.getHash());
     this.contentByHash.set(this.document.getHash(), this.document.getText());
+    this.hydrateRevisionStore();
     outputChannel.appendLine(`Opened ${this.document.uri.fsPath}`);
 
     this.panel.webview.options = {
@@ -340,6 +466,16 @@ class ExcalidrawEditor implements vscode.Disposable {
 
         if (message?.type === "save") {
           await this.flushSave(true);
+          return;
+        }
+
+        if (message?.type === "undo") {
+          await this.undo();
+          return;
+        }
+
+        if (message?.type === "redo") {
+          await this.redo();
           return;
         }
 
@@ -639,7 +775,7 @@ class ExcalidrawEditor implements vscode.Disposable {
   }
 
   async pushLatestFromDisk(reason: string, force = false): Promise<void> {
-    if (!this.webviewReady) {
+    if (!this.webviewReady || this.revisionNavigationDepth > 0) {
       return;
     }
 
@@ -667,13 +803,82 @@ class ExcalidrawEditor implements vscode.Disposable {
     this.invalidDiskWarningHash = "";
     const diskHash = hashContent(new TextEncoder().encode(diskText));
     this.contentByHash.set(diskHash, diskText);
+
+    if (
+      this.liveInteractionActive &&
+      this.agentTurnActive &&
+      reason !== "ready" &&
+      reason !== "revert"
+    ) {
+      this.queueLiveDiskUpdate(diskHash, diskText);
+      return;
+    }
+
     const effects =
       reason === "ready"
         ? this.sync.bootstrap(diskHash)
         : force
           ? this.sync.acceptExternal(diskHash)
           : this.sync.diskObserved(diskHash);
+
+    const canvasHash = this.sync.snapshot().canvasHash;
+    for (const effect of effects) {
+      if (effect.type !== "loadCanvas" || effect.hash === canvasHash) {
+        continue;
+      }
+      if (reason === "ready") {
+        continue;
+      }
+
+      const currentSource = this.revisionHistory.current()?.source ?? "initial";
+      this.checkpointCurrentRevision(currentSource);
+    }
+
     await this.executeSyncEffects(effects, reason);
+  }
+
+  private queueLiveDiskUpdate(diskHash: string, _diskText: string): void {
+    const snapshot = this.sync.snapshot();
+    if (diskHash === snapshot.canvasHash && snapshot.phase === "synced") {
+      return;
+    }
+
+    this.pendingLiveDiskHash = diskHash;
+    this.pendingLiveDiskText = _diskText;
+    this.scheduleLiveFlush();
+  }
+
+  private scheduleLiveFlush(): void {
+    if (this.liveFlushTimer) {
+      return;
+    }
+
+    this.liveFlushTimer = setTimeout(() => {
+      this.liveFlushTimer = null;
+      void this.flushLiveInteraction();
+    }, LIVE_INTERACTION_FRAME_MS);
+  }
+
+  private async flushLiveInteraction(): Promise<void> {
+    if (!this.pendingLiveDiskHash || !this.pendingLiveDiskText) {
+      return;
+    }
+
+    const diskHash = this.pendingLiveDiskHash;
+    this.pendingLiveDiskHash = null;
+    this.pendingLiveDiskText = null;
+
+    const effects = this.sync.diskObserved(diskHash);
+    await this.executeSyncEffects(effects, "live-frame");
+  }
+
+  private clearLiveInteractionTimers(): void {
+    if (this.liveFlushTimer) {
+      clearTimeout(this.liveFlushTimer);
+      this.liveFlushTimer = null;
+    }
+    this.pendingLiveDiskHash = null;
+    this.pendingLiveDiskText = null;
   }
 
   private applyWebviewLoad(generation: number, appliedHash: string): void {
@@ -694,11 +899,195 @@ class ExcalidrawEditor implements vscode.Disposable {
         this.pendingLoadContent.delete(pendingGeneration);
       }
     }
+    const origin = this.pendingLoadOrigins.get(generation) ?? "agent";
+    this.pendingLoadOrigins.delete(generation);
+    if (this.liveInteractionActive && this.agentTurnActive && origin === "agent") {
+      this.liveCanvasElements = snapshotElements(parseDiagramElements(content ?? ""));
+      this.deferredRevisionCheckpoint = { hash: appliedHash, origin };
+    } else {
+      this.recordRevisionCheckpoint(appliedHash, origin);
+    }
     outputChannel.appendLine(
       `[loadApplied] generation ${generation} (${appliedHash.slice(0, 8)})`
     );
     this.acceptWebviewEdits = !this.agentTurnActive;
     this.scheduleLint();
+  }
+
+  private recordRevisionCheckpoint(hash: string, origin: LoadOrigin): void {
+    if (origin === "undo" || origin === "redo") {
+      return;
+    }
+
+    const source = this.revisionSourceForOrigin(origin);
+    const content =
+      this.contentByHash.get(hash) ??
+      (this.document.getHash() === hash ? this.document.getText() : undefined);
+    if (!content) {
+      return;
+    }
+
+    this.contentByHash.set(hash, content);
+
+    if (origin === "initial") {
+      const current = this.revisionHistory.current();
+      if (!current) {
+        this.revisionHistory.reset({ hash, source });
+        this.persistRevision(hash, content, source);
+      } else if (current.hash !== hash) {
+        this.revisionHistory.push({ hash, source: "agent" });
+        this.persistRevision(hash, content, "agent");
+      }
+      return;
+    }
+
+    this.revisionHistory.push({ hash, source });
+    this.persistRevision(hash, content, source);
+    if (origin === "agent") {
+      outputChannel.appendLine(`[history] recorded agent revision (${hash.slice(0, 8)})`);
+    }
+  }
+
+  private recordHumanSaveCheckpoint(hash: string): void {
+    const content =
+      this.contentByHash.get(hash) ??
+      (this.document.getHash() === hash ? this.document.getText() : undefined);
+    if (!content) {
+      return;
+    }
+
+    this.contentByHash.set(hash, content);
+    this.revisionHistory.push({ hash, source: "human" });
+    this.persistRevision(hash, content, "human");
+  }
+
+  private syncPersistedIndex(): void {
+    const diagramPath = this.diagramPath();
+    if (!diagramPath) {
+      return;
+    }
+
+    const { entries, index } = this.revisionHistory.snapshot();
+    persistRevisionIndex(diagramPath, entries, index);
+  }
+
+  private revisionSourceForOrigin(origin: LoadOrigin): RevisionSource {
+    switch (origin) {
+      case "initial":
+        return "initial";
+      case "agent":
+        return "agent";
+      case "conflict-resolution":
+        return "conflict-resolution";
+      default:
+        return "human";
+    }
+  }
+
+  async undo(): Promise<void> {
+    if (this.agentTurnActive || !this.webviewReady) {
+      void vscode.window.setStatusBarMessage("Undo unavailable during agent turn", 2000);
+      return;
+    }
+
+    const snapshot = this.sync.snapshot();
+    if (snapshot.phase === "humanDirty" || snapshot.phase === "agentConflict") {
+      this.cancelPendingSave();
+      const effects = this.sync.revertUnsavedHuman();
+      if (effects.length === 0) {
+        void vscode.window.setStatusBarMessage("Nothing to undo", 2000);
+        return;
+      }
+      await this.executeSyncEffects(effects, "undo-local");
+      outputChannel.appendLine("[undo] reverted unsaved canvas edits");
+      void vscode.window.setStatusBarMessage("Undid unsaved edits", 2000);
+      return;
+    }
+
+    if (!this.revisionHistory.canUndo()) {
+      void vscode.window.setStatusBarMessage("Nothing to undo", 2000);
+      outputChannel.appendLine("[undo] revision stack empty");
+      return;
+    }
+
+    const entry = this.revisionHistory.undo();
+    if (!entry) {
+      void vscode.window.setStatusBarMessage("Nothing to undo", 2000);
+      return;
+    }
+
+    this.cancelPendingSave();
+    const restored = await this.loadRevision(entry.hash, "undo");
+    if (restored) {
+      outputChannel.appendLine(`[undo] ${entry.hash.slice(0, 8)} (${entry.source})`);
+      const message =
+        entry.source === "agent" ? "Undid agent change" : "Undid diagram change";
+      void vscode.window.setStatusBarMessage(message, 2000);
+    }
+  }
+
+  async redo(): Promise<void> {
+    if (this.agentTurnActive || !this.webviewReady) {
+      void vscode.window.setStatusBarMessage("Redo unavailable during agent turn", 2000);
+      return;
+    }
+
+    if (!this.revisionHistory.canRedo()) {
+      void vscode.window.setStatusBarMessage("Nothing to redo", 2000);
+      return;
+    }
+
+    const entry = this.revisionHistory.redo();
+    if (!entry) {
+      void vscode.window.setStatusBarMessage("Nothing to redo", 2000);
+      return;
+    }
+
+    this.cancelPendingSave();
+    const restored = await this.loadRevision(entry.hash, "redo");
+    if (restored) {
+      outputChannel.appendLine(`[redo] ${entry.hash.slice(0, 8)} (${entry.source})`);
+      void vscode.window.setStatusBarMessage("Redid diagram change", 2000);
+    }
+  }
+
+  private async loadRevision(hash: string, origin: LoadOrigin): Promise<boolean> {
+    let content = this.contentByHash.get(hash);
+    if (!content) {
+      const diagramPath = this.diagramPath();
+      if (diagramPath) {
+        content = loadPersistedSnapshot(diagramPath, hash);
+        if (content) {
+          this.contentByHash.set(hash, content);
+        }
+      }
+    }
+    if (!content) {
+      outputChannel.appendLine(
+        `[${origin}] missing revision content ${hash.slice(0, 8)}`
+      );
+      void vscode.window.showWarningMessage("Undo failed — revision content missing.");
+      return false;
+    }
+
+    this.revisionNavigationDepth += 1;
+    try {
+      this.document.updateFromText(content, false);
+      try {
+        await this.document.save();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`Failed to restore revision: ${message}`);
+        return false;
+      }
+
+      const effects = this.sync.forceLoad(hash, origin);
+      await this.executeSyncEffects(effects, origin);
+      this.syncPersistedIndex();
+      return true;
+    } finally {
+      this.revisionNavigationDepth -= 1;
+    }
   }
 
   private setupDiskWatchDebounce(delayMs: number): void {
@@ -736,25 +1125,52 @@ class ExcalidrawEditor implements vscode.Disposable {
 
   private enterAgentTurn(label: string, reason: string): void {
     this.agentTurnActive = true;
+    this.liveInteractionActive = true;
     this.sync.beginAgentTurn();
     this.cancelPendingSave();
     this.acceptWebviewEdits = false;
+    const currentSource = this.revisionHistory.current()?.source ?? "initial";
+    this.checkpointCurrentRevision(currentSource);
+    const canvasHash = this.sync.snapshot().canvasHash;
+    const canvasContent =
+      this.contentByHash.get(canvasHash) ?? this.document.getText();
+    this.liveCanvasElements = snapshotElements(parseDiagramElements(canvasContent));
     this.setupDiskWatchDebounce(AGENT_TURN_WATCH_DEBOUNCE_MS);
     void this.panel.webview.postMessage({
       type: "agentTurn",
       active: true,
       label,
     });
+    void this.panel.webview.postMessage({
+      type: "liveInteraction",
+      active: true,
+      frameMs: LIVE_INTERACTION_FRAME_MS,
+    });
     outputChannel.appendLine(`[agent-turn] started (${reason})`);
     void this.pushLatestFromDisk(`${reason}-agent-turn-start`, true);
   }
 
   private async exitAgentTurn(reason: string): Promise<void> {
+    await this.flushLiveInteraction();
+    if (this.deferredRevisionCheckpoint) {
+      this.recordRevisionCheckpoint(
+        this.deferredRevisionCheckpoint.hash,
+        this.deferredRevisionCheckpoint.origin
+      );
+      this.deferredRevisionCheckpoint = null;
+    }
     this.agentTurnActive = false;
+    this.liveInteractionActive = false;
+    this.liveCanvasElements = [];
+    this.clearLiveInteractionTimers();
     this.sync.endAgentTurn();
     this.setupDiskWatchDebounce(WATCH_DEBOUNCE_MS);
     void this.panel.webview.postMessage({
       type: "agentTurn",
+      active: false,
+    });
+    void this.panel.webview.postMessage({
+      type: "liveInteraction",
       active: false,
     });
     outputChannel.appendLine(`[agent-turn] ended (${reason})`);
@@ -872,6 +1288,41 @@ class ExcalidrawEditor implements vscode.Disposable {
           continue;
         }
         this.pendingLoadContent.set(effect.generation, content);
+        this.pendingLoadOrigins.set(effect.generation, effect.origin);
+
+        if (
+          this.liveInteractionActive &&
+          this.agentTurnActive &&
+          effect.origin === "agent"
+        ) {
+          const nextElements = parseDiagramElements(content);
+          const diff = diffElements(this.liveCanvasElements, nextElements);
+          if (
+            !shouldUseFullReload(
+              diff,
+              this.liveCanvasElements.length,
+              nextElements.length,
+              this.liveCanvasElements.length > 0
+            )
+          ) {
+            void this.panel.webview.postMessage({
+              type: "patch",
+              generation: effect.generation,
+              hash: effect.hash,
+              origin: effect.origin,
+              agentTurn: true,
+              added: diff.added,
+              updated: diff.updated,
+              removedIds: diff.removedIds,
+              files: parseDiagramFiles(content),
+            });
+            outputChannel.appendLine(
+              `[${reason}] patch generation ${effect.generation} (+${diff.added.length} ~${diff.updated.length} -${diff.removedIds.length})`
+            );
+            continue;
+          }
+        }
+
         void this.panel.webview.postMessage({
           type: "load",
           content,
@@ -880,6 +1331,7 @@ class ExcalidrawEditor implements vscode.Disposable {
           hash: effect.hash,
           origin: effect.origin,
           agentTurn: this.agentTurnActive,
+          liveInteraction: this.liveInteractionActive,
         });
         outputChannel.appendLine(
           `[${reason}] load generation ${effect.generation} (${effect.hash.slice(0, 8)})`
@@ -938,6 +1390,7 @@ class ExcalidrawEditor implements vscode.Disposable {
       }
 
       this.sync.humanSaveSucceeded(effect.humanHash);
+      this.recordHumanSaveCheckpoint(effect.humanHash);
       outputChannel.appendLine(
         `[autosave] ${path.basename(this.document.uri.fsPath)} (${effect.humanHash.slice(0, 8)})`
       );
